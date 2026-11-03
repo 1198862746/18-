@@ -31,10 +31,54 @@
   .spkq:hover, .module > h2 .spk:hover { background:#2563eb; }
   #status { font-size:13px; opacity:.9; }
   @media (max-width:600px){ .container{padding:8px;} .module{padding:4px 12px 12px;} h2{font-size:17px;} }
+
+  :root { --topbar-height:64px; }
+  .page-layout { display:grid; grid-template-columns:260px minmax(0, 1fr); gap:24px;
+    max-width:1200px; margin:0 auto; padding:0 16px; align-items:start; }
+  .page-layout > .container { width:100%; min-width:0; max-width:none; margin:0; padding:0; overflow-wrap:anywhere; }
+  .toc { position:sticky; top:calc(var(--topbar-height) + 16px); margin:16px 0;
+    max-height:calc(100dvh - var(--topbar-height) - 32px); overflow-y:auto; overscroll-behavior:contain;
+    padding:16px 12px; border:1px solid #e2e6ec; border-radius:10px; background:#fff; }
+  .toc-header { display:flex; justify-content:space-between; align-items:center; margin:0 6px 10px; }
+  .toc-header h2 { margin:0; font-size:17px; }
+  .toc-list, .toc-groups { list-style:none; margin:0; padding:0; }
+  .toc-list > li + li { margin-top:6px; }
+  .toc-row { display:flex; align-items:flex-start; gap:4px; }
+  .toc a { display:block; padding:8px 10px; border-radius:6px; color:#39465b;
+    text-decoration:none; font-size:14px; overflow-wrap:anywhere; }
+  .toc-row > a { flex:1; min-width:0; font-weight:600; }
+  .toc a:hover { background:#f0f5ff; color:#1d4ed8; }
+  .toc a[aria-current="location"] { background:#e8f0ff; color:#1d4ed8; font-weight:700; }
+  .toc a.is-parent { color:#1d4ed8; }
+  .toc-groups { margin:4px 0 8px 12px; padding-left:8px; border-left:1px solid #e2e6ec; }
+  .toc-groups[hidden] { display:none; }
+  .toc-groups a { padding:7px 9px; font-size:13px; }
+  .toc-expand, .toc-close { flex-shrink:0; border:0; border-radius:6px; padding:8px;
+    background:#eef1f5; color:#39465b; font:inherit; cursor:pointer; }
+  .toc-expand { margin-top:3px; line-height:1.3; }
+  .toc a:focus-visible, .toc button:focus-visible, #tocToggle:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+  .module, .module h3 { scroll-margin-top:calc(var(--topbar-height) + 16px); }
+  .module > h2 .spk { position:static; width:auto; height:auto; padding:7px 10px; border-radius:6px; font-size:13px; line-height:1.4; }
+  .topbar select { min-width:0; max-width:100%; }
+  .topbar #voiceTag, .topbar #status { overflow-wrap:anywhere; }
+  .topbar #tocToggle, .toc-close, .toc-backdrop { display:none; }
+  @media (max-width:1000px) {
+    .page-layout { display:block; max-width:932px; }
+    .topbar #tocToggle, .toc-close { display:inline-block; }
+    .toc { position:fixed; z-index:30; top:0; bottom:0; left:0; width:min(320px, calc(100vw - 40px));
+      max-height:100dvh; margin:0; border-radius:0; padding:18px 12px; visibility:hidden;
+      transform:translateX(-100%); box-shadow:4px 0 24px rgba(0,0,0,.16); }
+    body.toc-open { overflow:hidden; }
+    body.toc-open .toc { visibility:visible; transform:translateX(0); }
+    body.toc-open .toc-backdrop { display:block; position:fixed; z-index:20; inset:0;
+      background:rgba(15,23,42,.4); border:0; padding:0; }
+  }
+  @media (max-width:600px) { .page-layout { padding:0 8px; } }
 </style>
 </head>
 <body>
 <div class="topbar">
+  <button id="tocToggle" type="button" aria-controls="toc" aria-expanded="false">☰ 目录</button>
   <button onclick="playAll()">▶ 播放全部</button>
   <button class="stop" onclick="stopAll()">■ 停止</button>
   <span class="lbl">语速</span><input id="rate" type="range" min="0.6" max="1.4" step="0.1" value="1">
@@ -42,6 +86,14 @@
   <span id="voiceTag" class="vtag"></span>
   <span id="status"></span>
 </div>
+<div class="page-layout">
+<aside class="toc" id="toc" aria-labelledby="tocTitle">
+  <div class="toc-header">
+    <h2 id="tocTitle">目录</h2>
+    <button class="toc-close" id="tocClose" type="button" aria-label="关闭目录">关闭</button>
+  </div>
+  <nav aria-label="模块与分组导航"><ul class="toc-list" id="tocList"></ul></nav>
+</aside>
 <div class="container">
 <section class="module" id="mod1">
 <h2>模块一：Java 核心技术 <button class="spk" onclick="speakModule(1)">🔊 播放本模块</button></h2>
@@ -864,16 +916,16 @@
 <h2>模块六：扩展与进阶题库（新增，不与上文重复） <button class="spk" onclick="speakModule(6)">🔊 播放本模块</button></h2>
 <div class="modbody" id="modbody6">
 <p>&gt; 本节在原 39 题基础上扩充，按"<b>中级 / 高级 / 进阶</b>"三层难度组织，覆盖 Java 基础与集合、并发、JVM、Spring 生态、数据库、缓存、消息队列、微服务与分布式、性能优化与故障排查，并补充项目实战、场景设计与深入追问。标签说明：【简历依据】= 来自孙存丰简历；【通用能力补充】= 中高级 Java 通用要求；【济南·有依据】= 来自前文智联/猎聘济南公开岗位；【济南·通用趋势】= 行业普遍趋势，非本地特定数据。</p>
-<h3>0. 济南市场视角（出题口径区分）</h3>
+<h3 id="mod6-overview">0. 济南市场视角（出题口径区分）</h3>
 <p class="li"><b>通用招聘趋势（中高级 Java 共性）</b>：分布式/微服务、云原生与容器化、性能优化、故障排查、系统设计、代码规范与可观测性。</p>
 <p class="li"><b>济南本地·有依据（招聘数据）</b>：① 国企/央企背景项目密集（浪潮、国网/鲁软、国家电投、齐鲁制药、特变电工）+ 大量外包驻场；② <b>信创国产化</b>（达梦 DM / OceanBase / GoldenDB / 麒麟·统信 OS）是强加分项；③ 行业集中在<b>电力、银行金融、工业互联网、医疗健康</b>；④ 高级岗明确考查 JVM/SQL 调优与分布式设计；⑤ AI 编程工具（Copilot 等）已写入部分任职要求。</p>
 <p class="li"><b>影响</b>：济南中高级岗常把"原理+调优+实战案例"作为区分度，且偏好有行业（电力/金融）经验与信创适配能力者；外包驻场岗则会追问稳定性、文档规范与出差意愿。</p>
-<h3>分层口径</h3>
+<h3 id="mod6-levels">分层口径</h3>
 <p class="li"><b>中级</b>：能正确使用并讲清原理。</p>
 <p class="li"><b>高级</b>：能设计、调优、处理异常与边界。</p>
 <p class="li"><b>进阶</b>：能架构权衡、定位根因、驾驭复杂分布式/性能问题。</p>
 <p>---</p>
-<h3>A. Java 基础与集合（补充）</h3>
+<h3 id="mod6-java">A. Java 基础与集合（补充）</h3>
 <div class="q" id="m6q1">
 <button class="spk spkq" onclick="speakId('m6q1')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q40 【中级】【简历依据：熟练-集合/设计模式】<code>equals</code> 与 <code>hashCode</code> 的契约是什么？在简历项目（如订单/用户去重）中什么场景会踩坑？</b></div>
@@ -926,7 +978,7 @@
 <p class="li"><b>参考答案</b>：CGLIB 通过<b>生成目标类的子类</b>（继承）并在子类中重写方法织入增强。而 <code>final</code> 类不可被继承、<code>final</code> 方法不可被重写，因此 CGLIB 无法代理它们。JDK 动态代理基于接口则不受此限（但要求有接口）。这也是为什么 Spring AOP 对 <code>final</code> 方法会"静默失效"——代理织不进去。</p>
 <p>---</p></div>
 </div>
-<h3>B. 并发编程（深入）</h3>
+<h3 id="mod6-concurrency">B. 并发编程（深入）</h3>
 <div class="q" id="m6q10">
 <button class="spk spkq" onclick="speakId('m6q10')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q43 【高级】【通用能力补充】<code>CompletableFuture</code> 如何做异步编排？相比 <code>Future</code>/<code>@Async</code> 强在哪？踩过什么坑？</b></div>
@@ -1013,7 +1065,7 @@
 <p class="li"><b>参考答案</b>：TTL（阿里开源）通过<b>装饰 Runnable/Callable</b>实现：提交任务时把当前线程的 TTL 值<b>快照</b>存入任务包装器；线程池执行该任务前，把快照<b>设入</b>执行线程的 TTL，执行完再<b>恢复</b>原值。这样即使线程复用，每个任务用的都是"提交时"的上下文，且不会污染其他任务，完美解决线程池/异步场景的上下文传递与串号问题（呼应 Q77 traceId 传递）。</p>
 <p>---</p></div>
 </div>
-<h3>C. JVM（深入）</h3>
+<h3 id="mod6-jvm">C. JVM（深入）</h3>
 <div class="q" id="m6q25">
 <button class="spk spkq" onclick="speakId('m6q25')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q48 【高级】【通用能力补充】JMM（Java 内存模型）解决了什么？<code>volatile</code> 的"可见性+有序性"在硬件层是怎么保证的？</b></div>
@@ -1123,7 +1175,7 @@
 <p class="li"><b>参考答案</b>：说明存在<b>老年代对象无法被回收</b>——即"内存泄漏"：这些对象仍被 GC Roots（如静态 Map、未remove 的 ThreadLocal、未关闭的资源、长生命周期缓存）强引用，GC 无能为力。每次 Full GC 都回收不掉，堆只涨不跌最终 OOM。此时应 <code>jmap -histo</code> + MAT 找"大对象 + Path to GC Roots"定位泄漏点。</p>
 <p>---</p></div>
 </div>
-<h3>D. Spring 生态（深入）</h3>
+<h3 id="mod6-spring">D. Spring 生态（深入）</h3>
 <div class="q" id="m6q43">
 <button class="spk spkq" onclick="speakId('m6q43')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q54 【高级】【简历依据：熟练-Spring】Spring 循环依赖三级缓存，为什么用三级而不是两级？构造器注入/原型 Bean 为什么解决不了？</b></div>
@@ -1210,7 +1262,7 @@
 <p class="li"><b>参考答案</b>：<code>AbstractApplicationContext.refresh()</code> 关键步骤：① <code>prepareRefresh</code>（环境准备）；② <code>obtainFreshBeanFactory</code>（获取/刷新 BeanFactory）；③ <code>prepareBeanFactory</code>（配置标准上下文）；④ <code>postProcessBeanFactory</code>（空，子类扩展）；⑤ <code>invokeBeanFactoryPostProcessors</code>（执行 BFPP，含配置类解析/包扫描）；⑥ <code>registerBeanPostProcessors</code>（注册 BPP）；⑦ <code>initMessageSource</code>/<code>initApplicationEventMulticaster</code>；⑧ <code>onRefresh</code>；⑨ <code>registerListeners</code>；⑩ <code>finishBeanFactoryInitialization</code>（<b>实例化单例</b>）；⑪ <code>finishRefresh</code>（发布 <code>ContextRefreshedEvent</code>）。考察对容器启动脉络的理解。</p>
 <p>---</p></div>
 </div>
-<h3>E. 数据库 MySQL（深入）</h3>
+<h3 id="mod6-mysql">E. 数据库 MySQL（深入）</h3>
 <div class="q" id="m6q58">
 <button class="spk spkq" onclick="speakId('m6q58')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q59 【高级】【简历依据：熟悉-MySQL】MVCC 是怎么实现"可重复读"的？<code>ReadView</code> / <code>undo log</code> 的作用？</b></div>
@@ -1314,7 +1366,7 @@
 <p class="li"><b>参考答案</b>：<code>COUNT(*)</code> 在 InnoDB 要逐行统计（无缓存），大表很慢。优化：① <b>近似值</b>——<code>SHOW TABLE STATUS</code> 的 <code>Rows</code>（估算）或 <code>EXPLAIN</code> 的 <code>rows</code>（非精确）；② <b>汇总表/计数器</b>——用独立表记录行数、增删时维护（或定时任务更新）；③ <b>缓存计数</b>（Redis <code>INCR</code>）；④ 若只需"是否存在/是否超阈值"，用 <code>EXISTS</code>/<code>LIMIT 1</code> 代替 count；⑤ 归档冷数据减小表。核心是"别对大表实时 count"。</p>
 <p>---</p></div>
 </div>
-<h3>F. 缓存 Redis（深入）</h3>
+<h3 id="mod6-redis">F. 缓存 Redis（深入）</h3>
 <div class="q" id="m6q76">
 <button class="spk spkq" onclick="speakId('m6q76')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q65 【高级】【简历依据：Redis】RDB、AOF、混合持久化各自代价？金融/重要数据怎么配？</b></div>
@@ -1401,7 +1453,7 @@
 <p class="li"><b>参考答案</b>：<code>volatile-*</code> 系列策略<b>只对带 TTL 的 key 做淘汰</b>。若所有 key 都没设过期（都是永久 key），<code>volatile-lru</code> 发现"没有可淘汰的键"，于是什么都不淘汰——内存到 <code>maxmemory</code> 上限后，新写入直接<b>返回 OOM 错误（写被拒）</b>，业务失败。因此用 <code>volatile-*</code> 必须确保大部分 key 有 TTL；否则应改用 <code>allkeys-*</code>。</p>
 <p>---</p></div>
 </div>
-<h3>G. 消息队列（深入）</h3>
+<h3 id="mod6-mq">G. 消息队列（深入）</h3>
 <div class="q" id="m6q91">
 <button class="spk spkq" onclick="speakId('m6q91')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q70 【高级】【简历依据：RabbitMQ/RocketMQ】如何保证消息"顺序性"？你们项目（如操作日志、订单状态）需要顺序吗？</b></div>
@@ -1488,7 +1540,7 @@
 <p class="li"><b>参考答案</b>：大量消息同时失败会触发疯狂重试，进一步压垮已故障的下游，形成风暴。熔断：① <b>限流/暂停消费</b>——检测到失败率超阈值就暂停拉取或降速；② 指数退避 + 随机 jitter，避免"同时重试同时挂"的共振；③ 快速进 DLQ 而非无限重试；④ 对下游做<b>熔断（Sentinel/Hystrix）</b>，下游病了就快速失败不再打；⑤ 告警人工介入。核心："失败要快速隔离，别用重试把火点更大"。</p>
 <p>---</p></div>
 </div>
-<h3>H. 微服务与分布式（深入）</h3>
+<h3 id="mod6-distributed">H. 微服务与分布式（深入）</h3>
 <div class="q" id="m6q106">
 <button class="spk spkq" onclick="speakId('m6q106')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q75 【高级】【简历依据：Spring Cloud Alibaba / 通用】Sentinel 的限流、熔断、降级有什么区别？令牌桶与漏桶算法差异？</b></div>
@@ -1609,7 +1661,7 @@
 <p class="li"><b>参考答案</b>：Nacos 配置中心保留<b>历史版本</b>，热更新出问题可：① 在 Nacos 控制台"回滚"到上一可用版本，客户端监听会重新拉取、自动刷新；② 若刷新导致 Bean 重建失败，应用可能报错，需快速回滚配置 + 重启（最坏）；③ 灰度发布（按 IP/标签）先小范围验证再全量，降低回滚面。核心是"配置也要版本化、可回滚、可灰度"。</p>
 <p>---</p></div>
 </div>
-<h3>I. 性能优化与故障排查（实战）</h3>
+<h3 id="mod6-performance">I. 性能优化与故障排查（实战）</h3>
 <div class="q" id="m6q127">
 <button class="spk spkq" onclick="speakId('m6q127')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q82 【进阶】【通用能力补充】全链路性能优化思路？从接入层到 DB 你怎么逐层"找瓶颈、定方案"？</b></div>
@@ -1696,7 +1748,7 @@
 <p class="li"><b>参考答案</b>：<code>jmap -dump</code> 要遍历堆、本身也吃内存，容器内存受限时可能把自己或容器搞 OOM。规避：① 用 <b><code>jcmd &lt;pid&gt; GC.heap_dump</code></b>（相对更轻、现代推荐）；② 或 <code>jmap -dump:live</code>（只导活对象，但触发 Full GC）；③ 在<b>宿主机/临时大内存环境</b>执行；④ 限制堆转储频率、导出到挂盘而非容器内部；⑤ 优先用 <code>-XX:+HeapDumpOnOutOfMemoryError</code> 自动在 OOM 时 dump（不用人为 <code>jmap</code>）。</p>
 <p>---</p></div>
 </div>
-<h3>J. 场景设计与济南本地特色题</h3>
+<h3 id="mod6-scenarios">J. 场景设计与济南本地特色题</h3>
 <div class="q" id="m6q142">
 <button class="spk spkq" onclick="speakId('m6q142')" title="朗读此题">🔊</button>
 <div class="qbody"><div class="qtitle"><b>Q87 【进阶】【济南·有依据（电力/国网岗位）】设计一个"电力工单系统"的高并发提交与状态流转（结合简历 Spring Cloud + MQ + Redis）。</b></div>
@@ -1800,7 +1852,7 @@
 <p class="li"><b>参考答案</b>：① 网关 <code>GlobalFilter</code> 校验失败统一返回<b>结构化错误</b>（如 <code>{"code":401,"msg":"未登录/无权限"}</code>），不泄露细节；② 记录<b>鉴权失败日志 + traceId</b>，便于排查与审计；③ 监控<b>鉴权失败率/Top IP/Top 用户</b>，异常飙升（如暴力撞库、token 批量失效）告警；④ 失败可结合限流（频繁失败 IP 限流）；⑤ 敏感操作二次校验。把"鉴权"做成可观测、可防御的一环，而非仅拦截。</p>
 <p>---</p></div>
 </div>
-<h3>附：新增题目索引（按模块/难度）</h3>
+<h3 id="mod6-index">附：新增题目索引（按模块/难度）</h3>
 <p class="li"><b>Java 基础/集合</b>：Q40  equals/hashCode、Q41 设计模式落地、Q42 反射注解</p>
 <p class="li"><b>并发</b>：Q43 CompletableFuture、Q44 AQS、Q45 并发容器、Q46 死锁/CPU 排查、Q47 ThreadLocal 串号</p>
 <p class="li"><b>JVM</b>：Q48 JMM/volatile、Q49 G1/ZGC、Q50 双亲委派打破、Q51 OOM 分类、Q52 分配/TLAB、Q53 调优实战</p>
@@ -1814,6 +1866,176 @@
 <p>&gt; 说明：本节 53 题（Q40–Q92）均为<b>新增</b>，与上文 Q1–Q39 不重复；项目/场景题答案均给"参考框架/可选方案"，不写成候选人实际经历，亦不虚构简历未提供的数据。</p>
 </div></section>
 </div>
+
+</div>
+<button class="toc-backdrop" id="tocBackdrop" type="button" tabindex="-1" aria-label="关闭目录"></button>
+
+<script>
+// 目录独立初始化，避免设备语音支持情况影响导航。
+(function initNavigation(){
+  const topbar=document.querySelector('.topbar');
+  const content=document.querySelector('.container');
+  const toc=document.getElementById('toc');
+  const list=document.getElementById('tocList');
+  const toggle=document.getElementById('tocToggle');
+  const close=document.getElementById('tocClose');
+  const backdrop=document.getElementById('tocBackdrop');
+  const compact=window.matchMedia('(max-width:1000px)');
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
+  const entries=[];
+  const modules=[];
+  let current=null;
+  let scrollPending=false;
+
+  function headingText(heading){
+    const copy=heading.cloneNode(true);
+    copy.querySelectorAll('button').forEach(button=>button.remove());
+    return copy.textContent.trim();
+  }
+  function setExpanded(module, expanded){
+    module.groups.hidden=!expanded;
+    module.button.setAttribute('aria-expanded', String(expanded));
+    module.button.setAttribute('aria-label', (expanded?'收起':'展开')+module.title+'分组');
+    module.button.textContent=expanded?'▾':'▸';
+  }
+  function addLink(parent, target, heading, module){
+    const link=document.createElement('a');
+    link.href='#'+target.id;
+    link.textContent=headingText(heading);
+    heading.tabIndex=-1;
+    parent.appendChild(link);
+    const entry={target, heading, link, module};
+    entries.push(entry);
+    link.addEventListener('click', event=>{
+      if(event.button!==0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      setDrawer(false, false);
+      if(location.hash!==link.hash) history.pushState(null, '', link.hash);
+      activate(entry);
+      heading.focus({preventScroll:true});
+      target.scrollIntoView({behavior:reducedMotion.matches?'auto':'smooth', block:'start'});
+    });
+    return entry;
+  }
+  document.querySelectorAll('.module').forEach(section=>{
+    const heading=section.querySelector('h2');
+    const item=document.createElement('li');
+    const row=document.createElement('div');
+    row.className='toc-row';
+    item.appendChild(row);
+    list.appendChild(item);
+    const module={title:headingText(heading), entry:null, groups:null, button:null};
+    modules.push(module);
+    module.entry=addLink(row, section, heading, module);
+    const headings=section.querySelectorAll('h3');
+    if(!headings.length) return;
+    module.button=document.createElement('button');
+    module.button.className='toc-expand';
+    module.button.type='button';
+    module.groups=document.createElement('ul');
+    module.groups.className='toc-groups';
+    module.groups.id='toc-'+section.id+'-groups';
+    module.button.setAttribute('aria-controls', module.groups.id);
+    row.appendChild(module.button);
+    item.appendChild(module.groups);
+    headings.forEach(group=>{
+      const child=document.createElement('li');
+      module.groups.appendChild(child);
+      addLink(child, group, group, module);
+    });
+    setExpanded(module, false);
+    module.button.addEventListener('click', ()=>setExpanded(module, module.groups.hidden));
+  });
+
+  function activate(entry){
+    if(current===entry) return;
+    if(current) current.link.removeAttribute('aria-current');
+    modules.forEach(module=>module.entry.link.classList.remove('is-parent'));
+    current=entry;
+    entry.link.setAttribute('aria-current', 'location');
+    if(entry!==entry.module.entry) entry.module.entry.link.classList.add('is-parent');
+    if(entry.module.groups) setExpanded(entry.module, true);
+    const bounds=toc.getBoundingClientRect();
+    const linkBounds=entry.link.getBoundingClientRect();
+    if(linkBounds.top<bounds.top+12) toc.scrollTop+=linkBounds.top-bounds.top-12;
+    else if(linkBounds.bottom>bounds.bottom-12) toc.scrollTop+=linkBounds.bottom-bounds.bottom+12;
+  }
+  function updateCurrent(){
+    const limit=topbar.getBoundingClientRect().height+24;
+    let active=entries[0];
+    for(const entry of entries){
+      if(entry.target.getBoundingClientRect().top>limit) break;
+      active=entry;
+    }
+    // 页尾空间不足时，仍能高亮最后一个分组。
+    if(window.scrollY>0 && window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-2){
+      active=entries[entries.length-1];
+    }
+    if(active) activate(active);
+  }
+  function requestCurrent(){
+    if(scrollPending) return;
+    scrollPending=true;
+    requestAnimationFrame(()=>{ scrollPending=false; updateCurrent(); });
+  }
+  function measureTopbar(){
+    document.documentElement.style.setProperty('--topbar-height', topbar.getBoundingClientRect().height+'px');
+    requestCurrent();
+  }
+  function setDrawer(open, restoreFocus){
+    const visible=compact.matches && open;
+    document.body.classList.toggle('toc-open', visible);
+    toggle.setAttribute('aria-expanded', String(visible));
+    toc.inert=compact.matches && !visible;
+    topbar.inert=visible;
+    content.inert=visible;
+    if(visible){
+      toc.setAttribute('role', 'dialog');
+      toc.setAttribute('aria-modal', 'true');
+      close.focus();
+    } else {
+      toc.removeAttribute('role');
+      toc.removeAttribute('aria-modal');
+      if(restoreFocus) toggle.focus();
+    }
+  }
+  toggle.addEventListener('click', ()=>setDrawer(true, false));
+  close.addEventListener('click', ()=>setDrawer(false, true));
+  backdrop.addEventListener('click', ()=>setDrawer(false, true));
+  document.addEventListener('keydown', event=>{
+    if(!document.body.classList.contains('toc-open')) return;
+    if(event.key==='Escape'){
+      event.preventDefault();
+      setDrawer(false, true);
+    } else if(event.key==='Tab'){
+      const controls=Array.from(toc.querySelectorAll('a[href], button')).filter(el=>el.getClientRects().length);
+      const first=controls[0], last=controls[controls.length-1];
+      if(event.shiftKey && document.activeElement===first){ event.preventDefault(); last.focus(); }
+      else if(!event.shiftKey && document.activeElement===last){ event.preventDefault(); first.focus(); }
+    }
+  });
+  compact.addEventListener('change', ()=>{
+    const focusInside=toc.contains(document.activeElement);
+    setDrawer(false, compact.matches && focusInside);
+    measureTopbar();
+  });
+  function restoreAnchor(){
+    const entry=entries.find(candidate=>'#'+candidate.target.id===location.hash);
+    if(entry){
+      activate(entry);
+      entry.target.scrollIntoView({behavior:'auto', block:'start'});
+    } else requestCurrent();
+  }
+  window.addEventListener('scroll', requestCurrent, {passive:true});
+  window.addEventListener('resize', measureTopbar);
+  window.addEventListener('hashchange', restoreAnchor);
+  window.addEventListener('load', ()=>{ measureTopbar(); restoreAnchor(); });
+  if(window.ResizeObserver) new ResizeObserver(measureTopbar).observe(topbar);
+  setDrawer(false, false);
+  measureTopbar();
+  restoreAnchor();
+})();
+</script>
 
 <script>
 let voices=[];
