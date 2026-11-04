@@ -79,11 +79,12 @@
 <body>
 <div class="topbar">
   <button id="tocToggle" type="button" aria-controls="toc" aria-expanded="false">☰ 目录</button>
-  <button onclick="playAll()">▶ 播放全部</button>
+  <button onclick="playAll()" title="朗读全部" aria-label="朗读全部">🔊</button>
   <button class="stop" onclick="stopAll()">■ 停止</button>
-  <span class="lbl">语速</span><input id="rate" type="range" min="0.6" max="1.4" step="0.1" value="1">
-  <span class="lbl">语音</span><select id="voice"></select>
-  <span id="voiceTag" class="vtag"></span>
+  <span class="lbl">语速</span><input id="rate" aria-label="朗读语速" type="range" min="0.6" max="1.4" step="0.1" value="1">
+  <span class="lbl">语音</span><select id="voice" aria-label="朗读语音"></select>
+  <button id="previewVoice" type="button" onclick="previewVoice()">试听</button>
+  <span id="voiceTag" class="vtag" role="status"></span>
   <span id="status"></span>
 </div>
 <div class="page-layout">
@@ -96,7 +97,7 @@
 </aside>
 <div class="container">
 <section class="module" id="mod1">
-<h2>模块一：Java 核心技术 <button class="spk" onclick="speakModule(1)">🔊 播放本模块</button></h2>
+<h2>模块一：Java 核心技术 <button class="spk" onclick="speakModule(1)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
 <div class="modbody" id="modbody1">
 <div class="q" id="m1q1">
 <button class="spk spkq" onclick="speakId('m1q1')" title="朗读此题">🔊</button>
@@ -225,7 +226,7 @@
 </div>
 </div></section>
 <section class="module" id="mod2">
-<h2>模块二：框架与中间件 <button class="spk" onclick="speakModule(2)">🔊 播放本模块</button></h2>
+<h2>模块二：框架与中间件 <button class="spk" onclick="speakModule(2)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
 <div class="modbody" id="modbody2">
 <div class="q" id="m2q1">
 <button class="spk spkq" onclick="speakId('m2q1')" title="朗读此题">🔊</button>
@@ -567,7 +568,7 @@
 </div>
 </div></section>
 <section class="module" id="mod3">
-<h2>模块三：中高级工程能力（系统设计 / 分布式 / 优化 / 排查） <button class="spk" onclick="speakModule(3)">🔊 播放本模块</button></h2>
+<h2>模块三：中高级工程能力（系统设计 / 分布式 / 优化 / 排查） <button class="spk" onclick="speakModule(3)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
 <div class="modbody" id="modbody3">
 <div class="q" id="m3q1">
 <button class="spk spkq" onclick="speakId('m3q1')" title="朗读此题">🔊</button>
@@ -684,7 +685,7 @@
 </div>
 </div></section>
 <section class="module" id="mod4">
-<h2>模块四：项目深挖（逐层追问） <button class="spk" onclick="speakModule(4)">🔊 播放本模块</button></h2>
+<h2>模块四：项目深挖（逐层追问） <button class="spk" onclick="speakModule(4)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
 <div class="modbody" id="modbody4">
 <p>&gt; 说明：以下"参考答案"均为<b>合理的回答框架/可选方案</b>，用于评估候选人回答质量，<b>不视为候选人实际经历</b>，亦不虚构简历未提供的细节。面试官应按"业务背景与约束→技术选型及取舍→实现细节→异常与边界场景→效果验证与个人贡献"五层逐题追问。</p>
 <div class="q" id="m4q1">
@@ -777,7 +778,7 @@
 </div>
 </div></section>
 <section class="module" id="mod5">
-<h2>模块五：AI 工具使用（基于简历真实任务） <button class="spk" onclick="speakModule(5)">🔊 播放本模块</button></h2>
+<h2>模块五：AI 工具使用（基于简历真实任务） <button class="spk" onclick="speakModule(5)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
 <div class="modbody" id="modbody5">
 <p>&gt; 简历明确：使用 Codex、ChatGPT 辅助<b>需求拆解、代码编写、验收用例整理</b>，并对生成内容<b>人工复核</b>（核验业务逻辑与代码质量后应用）。以下题目据此设计，不虚构候选人经历；凡属假设场景均已标注。</p>
 <div class="q" id="m5q1">
@@ -913,7 +914,7 @@
 </div>
 </div></section>
 <section class="module" id="mod6">
-<h2>模块六：扩展与进阶题库（新增，不与上文重复） <button class="spk" onclick="speakModule(6)">🔊 播放本模块</button></h2>
+<h2>模块六：扩展与进阶题库（新增，不与上文重复） <button class="spk" onclick="speakModule(6)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
 <div class="modbody" id="modbody6">
 <p>&gt; 本节在原 39 题基础上扩充，按"<b>中级 / 高级 / 进阶</b>"三层难度组织，覆盖 Java 基础与集合、并发、JVM、Spring 生态、数据库、缓存、消息队列、微服务与分布式、性能优化与故障排查，并补充项目实战、场景设计与深入追问。标签说明：【简历依据】= 来自孙存丰简历；【通用能力补充】= 中高级 Java 通用要求；【济南·有依据】= 来自前文智联/猎聘济南公开岗位；【济南·通用趋势】= 行业普遍趋势，非本地特定数据。</p>
 <h3 id="mod6-overview">0. 济南市场视角（出题口径区分）</h3>
@@ -2038,56 +2039,93 @@
 </script>
 
 <script>
-let voices=[];
-// 给中文语音打分，优先“好听的女声 / 自然在线语音”
+let voices=[], preferredVoice='', playbackId=0, queue=[], qi=0;
+const speechEngine=window.speechSynthesis;
+const preferenceKey='interview-speech-preferences';
+try {
+  const saved=JSON.parse(localStorage.getItem(preferenceKey)||'{}');
+  if(saved && typeof saved.voice==='string') preferredVoice=saved.voice;
+  if(saved && typeof saved.rate==='number' && saved.rate>=0.6 && saved.rate<=1.4) document.getElementById('rate').value=saved.rate;
+} catch(e) { /* 存储不可用不影响朗读。 */ }
+function voiceId(v){ return JSON.stringify([v.voiceURI||v.name,v.lang,v.name]); }
+// 根据设备音色名称推荐，实际效果以试听为准。
 function scoreVoice(v){
-  const n=(v.name||'').toLowerCase();
-  if(/xiao\s*xiao|xiaoxiao/.test(n)) return 100;   // 微软晓晓·在线自然女声（最推荐）
-  if(/hui\s*hui|huihui/.test(n)) return 95;        // 慧慧女声
-  if(/yao\s*yao|yaoyao/.test(n)) return 92;        // 瑶瑶女声
-  if(/ting(\s|-)*ting|tingting/.test(n)) return 90;// 婷婷女声
-  if(/yu(\s|-)*yu|yuyu/.test(n)) return 88;        // 玉玉女声
-  if(/sin(\s|-)*ji|sinji/.test(n)) return 86;      // 诗瑾女声
-  if(/mei(\s|-)*jia|meijia/.test(n)) return 84;    // 美佳女声
-  if(/xiao\s*bei|xiaobei/.test(n)) return 82;      // 潇贝女声
-  if(/female|女|woman/.test(n)) return 80;         // 明确标注女声
-  if(/natural|online|neural|enhanced/.test(n)) return 70; // 自然/在线/神经/增强，加分
-  if(/zh|chinese|中文/.test(n)) return 60;          // 中文但无性别词
-  return 0;
+  const n=(v.name||'').toLowerCase(), lang=(v.lang||'').toLowerCase().replace(/_/g,'-');
+  const female=/xiao[ -]*(xiao|yi)|hui[ -]*hui|yao[ -]*yao|ting[ -]*ting|晓晓|晓伊|慧慧|瑶瑶|婷婷|female|女|woman/.test(n);
+  const natural=/natural|online|neural|enhanced|premium|自然|在线|神经|增强/.test(n);
+  return (/^(zh-(cn|sg|hans)(-|$)|cmn($|-))/.test(lang)?100:0)+(female?40:0)+(natural?20:0);
 }
-function loadVoices(){ voices=speechSynthesis.getVoices();
-  const sel=document.getElementById('voice'); const cur=sel.value; sel.innerHTML='';
-  let best=-1, bestScore=-1;
-  voices.forEach((v,i)=>{ if(v.lang && v.lang.toLowerCase().startsWith('zh')){
-    const o=document.createElement('option'); o.value=i; o.text=v.name+' ('+v.lang+')'; sel.appendChild(o);
-    const sc=scoreVoice(v); if(sc>bestScore){ bestScore=sc; best=i; } } });
-  if(best>=0) sel.value=best;        // 默认选中最好听的中文女声
-  else if(cur) sel.value=cur;
-  const tag=document.getElementById('voiceTag');
-  if(tag) tag.textContent = best>=0 ? ('当前：'+voices[best].name) : '（设备无中文语音）';
+function savePreferences(){
+  try { localStorage.setItem(preferenceKey,JSON.stringify({voice:preferredVoice,rate:parseFloat(document.getElementById('rate').value)})); }
+  catch(e) { /* 部分浏览器限制本地文件存储。 */ }
 }
-speechSynthesis.onvoiceschanged=loadVoices; window.addEventListener('load', loadVoices);
+function updateVoiceTag(){
+  const v=voices.find(v=>voiceId(v)===document.getElementById('voice').value);
+  document.getElementById('voiceTag').textContent=v?'当前：'+v.name:'设备未提供中文语音，请检查系统语音设置';
+}
+function loadVoices(){
+  const sel=document.getElementById('voice'), current=sel.value;
+  voices=speechEngine?speechEngine.getVoices().filter(v=>/^(zh|cmn)([-_]|$)/i.test(v.lang||'')):[];
+  voices.sort((a,b)=>scoreVoice(b)-scoreVoice(a));
+  sel.innerHTML='';
+  voices.forEach((v,i)=>{
+    const o=document.createElement('option'); o.value=voiceId(v);
+    o.text=v.name+' ('+v.lang+')'+(i===0?' · 推荐':''); sel.appendChild(o);
+  });
+  const choice=[preferredVoice,current].find(id=>voices.some(v=>voiceId(v)===id));
+  if(voices.length) sel.value=choice||voiceId(voices[0]);
+  sel.disabled=!voices.length;
+  document.getElementById('previewVoice').disabled=!voices.length;
+  updateVoiceTag();
+  if(!speechEngine) document.getElementById('voiceTag').textContent='当前浏览器不支持语音朗读';
+}
+document.getElementById('voice').addEventListener('change',()=>{
+  preferredVoice=document.getElementById('voice').value; savePreferences(); updateVoiceTag();
+});
+document.getElementById('rate').addEventListener('input',savePreferences);
+if(speechEngine) speechEngine.addEventListener('voiceschanged',loadVoices);
+window.addEventListener('load',loadVoices);
+loadVoices();
 function setStatus(s){ document.getElementById('status').textContent=s; }
-function makeUtter(text){
-  const u=new SpeechSynthesisUtterance(text); u.lang='zh-CN';
-  u.rate=parseFloat(document.getElementById('rate').value);
-  const vi=document.getElementById('voice').value;
-  if(vi!=='' && voices[vi]) u.voice=voices[vi];
-  return u;
+function canSpeak(){
+  if(!speechEngine || !window.SpeechSynthesisUtterance){ setStatus('当前浏览器不支持语音朗读'); return false; }
+  if(!voices.length) loadVoices();
+  if(!voices.length){ setStatus('设备未提供中文语音，请检查系统语音设置'); return false; }
+  return true;
 }
-function speakText(text){ speechSynthesis.cancel(); const u=makeUtter(text); speechSynthesis.speak(u); return u; }
-function speakId(id){ const el=document.getElementById(id).querySelector('.qbody'); speakText(el.innerText); setStatus('正在朗读…'); }
-function speakModule(m){ const el=document.getElementById('modbody'+m); speakText(el.innerText); setStatus('正在朗读模块…'); }
-let queue=[], qi=0;
-function playAll(){ speechSynthesis.cancel(); queue=Array.from(document.querySelectorAll('.qbody')); qi=0; playNext(); setStatus('播放全部中…'); }
-function playNext(){
+function makeUtter(text){
+  const u=new SpeechSynthesisUtterance(text);
+  u.voice=voices.find(v=>voiceId(v)===document.getElementById('voice').value)||voices[0];
+  u.lang=u.voice.lang; u.rate=parseFloat(document.getElementById('rate').value); return u;
+}
+function cancelPlayback(){ playbackId++; queue=[]; qi=0; if(speechEngine) speechEngine.cancel(); }
+function speakText(text,status='正在朗读…'){
+  if(!canSpeak()) return;
+  cancelPlayback(); const id=playbackId, u=makeUtter(text);
+  u.onend=()=>{ if(id===playbackId) setStatus('播放完成'); };
+  u.onerror=e=>{ if(id===playbackId) setStatus('朗读失败：'+e.error); };
+  setStatus(status); speechEngine.speak(u); return u;
+}
+function previewVoice(){ speakText('你好，我会陪你一起准备面试。请选择你喜欢的声音，按照自己的节奏学习。','正在试听…'); }
+function speakId(id){ speakText(document.getElementById(id).querySelector('.qbody').innerText); }
+function speakModule(m){ const text=Array.from(document.getElementById('modbody'+m).querySelectorAll('.qbody')).map(el=>el.innerText).join('\n\n'); speakText(text,'正在朗读模块…'); }
+function playAll(){
+  if(!canSpeak()) return;
+  cancelPlayback(); queue=Array.from(document.querySelectorAll('.qbody'));
+  setStatus('播放全部中…'); playNext(playbackId);
+}
+function playNext(id){
+  if(id!==playbackId) return;
   if(qi>=queue.length){ setStatus('播放完成'); return; }
   const u=makeUtter(queue[qi].innerText);
-  u.onend=()=>{ qi++; playNext(); };
-  u.onerror=()=>{ qi++; playNext(); };
-  speechSynthesis.speak(u);
+  u.onend=()=>{ if(id===playbackId){ qi++; playNext(id); } };
+  u.onerror=e=>{
+    if(id!==playbackId || e.error==='canceled' || e.error==='interrupted') return;
+    queue=[]; setStatus('朗读失败：'+e.error);
+  };
+  speechEngine.speak(u);
 }
-function stopAll(){ speechSynthesis.cancel(); setStatus('已停止'); }
+function stopAll(){ cancelPlayback(); setStatus('已停止'); }
 </script>
 </body>
 </html>
