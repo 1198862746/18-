@@ -1,0 +1,190 @@
+[
+  {
+    "n": 5,
+    "title": "熔断限流与降级",
+    "groups": [
+      {
+        "id": "mod5-basic",
+        "title": "A. 雪崩、断路器与限流算法（中级）",
+        "qs": [
+          {
+            "id": "m5q1",
+            "q": "请说明微服务中服务雪崩与级联失败的形成过程，并列举常见的防护手段有哪些？",
+            "answer": "服务雪崩源于同步调用链上的依赖传导：当下游服务因慢查询、线程池打满或频繁 Full GC 出现延迟，上游线程会阻塞在等待响应上，Web 容器线程迅速耗尽，使本来健康的接口也失去响应，故障沿调用链逐层向上扩散，最终拖垮整个集群。常见触发点有重试风暴、超时设置过长和单一依赖占满共享线程池。防护核心是隔离加快速失败，把故障限制在最小范围。\n工程上用 `Hystrix` 的线程池隔离或 `Sentinel` 的并发线程数限流把不同依赖的资源切分开，配合 `timeout` 超时、`DegradeRule` 熔断降级、`FlowRule` 限流以及 `fallback` 回退，避免局部故障演变为全局不可用。生产还要设置合理的连接池和队列上限，禁用无界队列，并对重试加退避与抖动。",
+            "core": "考察雪崩的级联传导机理、线程耗尽根因，以及隔离、超时、熔断、限流、降级这套组合防护手段的落地思路。",
+            "follow": ""
+          },
+          {
+            "id": "m5q2",
+            "q": "断路器有哪三种状态，各自在什么条件下相互转换，半开态如何探测恢复？",
+            "answer": "断路器用状态机保护调用方，含 Closed、Open、Half-Open 三态。Closed 下正常放行并统计失败率或慢调用比例，一旦滑动窗口内错误率越过 `DegradeRule` 阈值就切到 Open；Open 态在 `timeWindow` 内直接拒绝请求并走降级，不再调用下游，给故障方留出恢复窗口。\n超过熔断时长进入 Half-Open，只放行少量探测请求，成功率达标则回到 Closed 并清空统计，仍失败则退回 Open 重新计时。`Resilience4j` 的 `CircuitBreaker` 用 `failureRateThreshold` 和 `waitDurationInOpenState` 控制。",
+            "core": "考察断路器三态语义、失败率与最小请求数阈值、熔断时长，以及半开态探测恢复与状态回滚的判定细节。",
+            "follow": "如果下游是偶发抖动而非持续宕机，半开态的探测流量该如何设置，才能既不误判恢复又不冲击上游？请结合探测请求数、成功比例阈值说明，并指出统计样本过小会带来什么风险。"
+          },
+          {
+            "id": "m5q3",
+            "q": "固定窗口、滑动窗口、漏桶与令牌桶四种限流算法的原理与边界问题是什么？",
+            "answer": "固定窗口把时间切成等长区间，用计数器在区间内累加，实现简单但存在临界突刺：两个窗口交界处可能瞬间涌入两倍于阈值的流量。滑动窗口把区间再细分为多个小格并随时间滚动，用 `LeapArray` 这类环形数组统计，能削平临界问题，格数越细越平滑但内存开销越大。漏桶以恒定速率出水，请求先入桶，超出容量即丢弃或排队，能强制整形但无法应对突发。\n令牌桶按固定速率往桶里放令牌，请求取到令牌才放行，桶容量决定允许的突发上限，因此既限制平均速率又保留一定突发能力，`Guava` 的 `RateLimiter` 与 `Sentinel` 的 `WarmUp` 预热都基于这一思路。生产选型看目标：严格匀速整形用漏桶，允许短时突发用令牌桶；分布式场景要把单机阈值换算成集群总量。",
+            "core": "考察四种限流算法的计数模型、临界突刺与突发处理能力差异，以及滑动窗口细分与集群总量换算的工程取舍。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod5-sentinel",
+        "title": "B. Sentinel 规则与持久化（高级）",
+        "qs": [
+          {
+            "id": "m5q4",
+            "q": "Sentinel 中资源如何定义，五类规则分别是什么，降级回调如何区分？",
+            "answer": "Sentinel 以资源为核心，方法或 URL 可通过 `SphU.entry` 埋点或用 `@SentinelResource` 声明，以 `resource` 名作为规则与统计的键。五类规则为流控 `FlowRule`、熔断降级 `DegradeRule`、热点参数 `ParamFlowRule`、系统自适应 `SystemRule` 和授权 `AuthorityRule`。\n`blockHandler` 只处理 `BlockException`，即规则触发的限流或降级，需与原方法同签名并多一个异常参数；`fallback` 处理业务异常，可用 `exceptionsToIgnore` 排除特定异常。两者都能在 `@SentinelResource` 里指定 `blockHandlerClass` 抽到独立类。规则默认只存内存，重启即失效。",
+            "core": "考察资源埋点方式、五类规则的职责边界，以及 blockHandler 面向 BlockException 与 fallback 面向业务异常的差异。",
+            "follow": ""
+          },
+          {
+            "id": "m5q5",
+            "q": "Sentinel 规则存内存有何痛点，接入 Nacos 时 push 与 pull 如何选？",
+            "answer": "默认内存模式下规则通过控制台或代码 API 下发，只驻留在应用进程内，应用重启或扩容新节点后规则全部丢失，多实例之间也无法保证一致，运维只能逐台重新配置，这在弹性伸缩和容器漂移场景几乎不可用。生产需要把规则外置到配置中心做持久化和集中管理，让所有实例共享同一份规则视图并实时生效。\n接入 Nacos 有两种思路。pull 模式由客户端定时轮询拉取，实现简单但有同步延迟；push 模式由控制台把规则写入 Nacos，借助 `NacosDataSource` 监听变更并通过 `ReadableDataSource` 推送到各实例，实时性和一致性更好，是官方推荐方案。落地时自定义 `Converter` 解析 `FlowRule` 列表。",
+            "core": "考察内存模式重启丢失与多实例不一致的痛点，以及 pull 定时拉取和 push 监听推送在实时性、一致性上的取舍。",
+            "follow": "采用 push 模式后，如果 Nacos 短暂不可用，应用启动时拿不到规则该怎么办？请从本地快照兜底和规则默认值两个角度说明降级方案，并说明为何不宜直接放行全部流量。"
+          },
+          {
+            "id": "m5q6",
+            "q": "Sentinel 滑动窗口统计如何实现，集群限流下 Token Server 承担什么角色？",
+            "answer": "Sentinel 统计基于 `LeapArray` 滑动窗口，把时间切成若干 `WindowWrap` 样本窗口，用原子数组按时间戳定位并累加 `MetricBucket` 里的通过数、阻塞数与响应时间，窗口滚动复用避免每秒建对象。`StatisticNode` 汇总资源维度数据，供 `FlowRule` 与 `DegradeRule` 判定读取。\n单机限流只在实例内累加，多实例阈值之和会大于集群真实容量，于是引入集群限流：由独立 `Token Server` 按 `clusterMode` 统一发令牌，各应用作为 `Token Client` 先申请再放行。`FlowRule` 里用 `clusterConfig` 指定阈值类型，Server 可内嵌或独立部署，需评估网络开销与单点风险。",
+            "core": "考察 LeapArray 样本窗口与 MetricBucket 的无锁统计原理，以及集群限流中 Token Server 统一发令牌与单点取舍。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod5-compare",
+        "title": "C. Hystrix、Resilience4j 与迁移（进阶）",
+        "qs": [
+          {
+            "id": "m5q7",
+            "q": "Hystrix 的线程隔离与信号量隔离有何区别，官方为何停止维护并转向维护模式？",
+            "answer": "线程隔离把每个依赖放进独立线程池，请求在池中线程执行，通过池大小做并发上限，超时可中断、支持异步，且下游阻塞不会耗尽 Web 容器线程，隔离最彻底；代价是线程切换、上下文传递与调度开销，池数量多时内存与线程成本高。信号量隔离用 `Semaphore` 计数器在调用线程内限并发，无额外线程、开销极小，但无法超时中断也不支持异步，下游慢时仍会占用调用线程。\n一般对不稳定的远程依赖用线程隔离，对本地缓存或内存调用用信号量隔离。Hystrix 在 2018 年进入维护模式后停止新增功能，原因是与 `RxJava` 强耦合、配置笨重，社区转向更轻量的 `Resilience4j`，后者只依赖 `Vavr`、函数式可组合。",
+            "core": "考察两种隔离开销与超时能力的差异、各自适用场景，以及 Hystrix 停更的技术与生态原因。",
+            "follow": ""
+          },
+          {
+            "id": "m5q8",
+            "q": "Resilience4j 包含哪五个核心模块，函数式装饰器如何组合多个容错能力？",
+            "answer": "Resilience4j 面向 Java 8 函数式编程，核心是 `CircuitBreaker` 断路器、`RateLimiter` 限流器、`Bulkhead` 舱壁隔离、`Retry` 重试和 `TimeLimiter` 超时控制五个模块，另有 `Cache` 缓存。它只依赖 `Vavr`，通过 `resilience4j-spring-boot2` 接入。\n使用上把逻辑包成 `Supplier`，再用 `Decorators.ofSupplier` 链式叠加 `withCircuitBreaker`、`withRetry`、`withBulkhead` 和 `withRateLimiter`，最后 `withTimeLimiter` 包超时并调用 `get`。",
+            "core": "考察五大模块职责、函数式 Decorators 链式装饰的顺序语义，以及注解与 Registry 监控的接入方式。",
+            "follow": ""
+          },
+          {
+            "id": "m5q9",
+            "q": "从 Hystrix 或 Sentinel 迁移到 Resilience4j，注解与配置如何改造？",
+            "answer": "注解层面，Hystrix 的 `@HystrixCommand` 与 `fallbackMethod` 要改为 `@CircuitBreaker` 和 `@RateLimiter`，兜底方法统一用 `fallbackMethod` 指定并接收原异常加 `Throwable`，熔断打开时抛 `CallNotPermittedException`。\n配置层面，Hystrix 的线程池参数和 Sentinel 的 `FlowRule`、`DegradeRule` 代码式规则，要换成按实例命名的 `failureRateThreshold`、`waitDurationInOpenState` 等前缀化配置，并删掉旧 starter、引入 `resilience4j-spring-boot2`。",
+            "core": "考察注解回调签名、限流降级语义合并、规则代码式到前缀化配置的映射，以及 starter 依赖的替换路径。",
+            "follow": "迁移后如果原来依赖 Hystrix Dashboard 做监控，新体系下该如何补齐指标与可视化？请说明 Micrometer 与 Prometheus 的接入要点，并指出断路器事件监听还能提供哪些状态变化信息。"
+          },
+          {
+            "id": "m5q10",
+            "q": "生产环境如何压测确定限流阈值，降级返回值该怎样设计并保证兜底幂等？",
+            "answer": "阈值不能拍脑袋，要先在单实例上做容量压测：逐步加压找出 CPU、线程、数据库连接池和响应时间的拐点，取系统在可接受延迟下的稳态吞吐作为基线，再按集群实例数换算总阈值并留出安全余量，同时区分核心链路与非核心链路设置不同 `FlowRule`。还要覆盖冷启动与依赖慢化场景，用 `WarmUp` 预热让流量缓慢爬升，并在线上用灰度实例持续校准，避免扩容或代码变更后阈值失真。\n降级返回要分级设计：查询类可返回缓存快照、空集合或默认值，写操作则要明确拒绝并带可识别的降级标识，绝不能静默返回成功造成数据错觉；兜底逻辑必须无远程依赖、无锁竞争且路径极短，防止降级本身成为新瓶颈。对写请求要保证幂等，用业务唯一号或 `Token` 做去重，配合 `fallback` 里记录待补偿日志，让恢复后能对账重放，避免重试与降级叠加引发重复扣款或重复下单。",
+            "core": "考察容量压测拐点与集群阈值换算、降级分级返回与降级标识，以及兜底幂等和补偿对账的生产约束。",
+            "follow": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "n": 6,
+    "title": "配置中心与 Bus",
+    "groups": [
+      {
+        "id": "mod6-config",
+        "title": "A. Spring Cloud Config Server（中级）",
+        "qs": [
+          {
+            "id": "m6q1",
+            "q": "Config Server 的架构如何，支持哪些后端存储，客户端怎样拉取配置？",
+            "answer": "Config Server 是独立的配置服务，对外暴露按应用名、环境与分支组织的 REST 端点，后端通过 `EnvironmentRepository` 抽象接入，最常用 Git，天然带版本与审计，也支持 Vault 存密文、JDBC 存数据库和本地文件系统。服务端用 `@EnableConfigServer` 启用。\n客户端在 bootstrap 阶段向 Server 发请求，携带 `spring.application.name`、`spring.profiles.active` 和 `label`，Server 合并公共配置、应用专属配置与 profile 覆盖后返回 `Environment`，客户端把远端属性以高优先级写入并注入 Bean。",
+            "core": "考察 EnvironmentRepository 抽象、Git 与 Vault 等后端差异，以及客户端 bootstrap 阶段拉取与属性合并流程。",
+            "follow": ""
+          },
+          {
+            "id": "m6q2",
+            "q": "bootstrap.yml 的作用是什么，2020.0.x 后为何默认不再启用？",
+            "answer": "bootstrap 上下文是主应用 `ApplicationContext` 的父容器，由 `BootstrapApplicationListener` 在启动最早阶段创建，专门加载 `bootstrap.yml` 中的引导期属性：配置中心地址、应用名、`profile`、加密密钥和连接凭证。它先于主容器完成远端拉取。\n从 `Spring Cloud 2020.0.x` 配合 `Spring Boot 2.4` 起，默认不再启用 bootstrap 上下文，改用 `spring.config.import` 的 Config Data 机制，例如加 `configserver:` 导入远端。若保留旧行为。",
+            "core": "考察 bootstrap 父容器的加载时机与高优先级语义，以及 2020.0.x 后 Config Data 导入与 starter 兼容开关。",
+            "follow": "升级到 2020.0.x 后如果仍用 bootstrap.yml 却读不到远端配置，排查思路是什么？请结合依赖缺失与 import 缺失两种成因说明，并给出最小改造方式。"
+          },
+          {
+            "id": "m6q3",
+            "q": "Config Server 的配置加解密如何工作，对称与非对称方式及占位符如何使用？",
+            "answer": "服务端借助 `TextEncryptor` 实现密文托管：对称方式配置 `encrypt.key` 指定密钥，简单但密钥分发有泄露风险；非对称方式用 `encrypt.keyStore.location`、`password`、`alias` 指向 `JKS` 密钥库，私钥留服务端解密、公钥给客户端加密，安全性更高。\n密文以 `{cipher}` 前缀加加密串写入配置，Server 返回时自动解密成明文，客户端无需感知密钥。运维通过 `/encrypt` 与 `/decrypt` 端点验证，注意用 POST 并做鉴权，避免解密能力外泄。生产把 Git 密文、密钥库和 `encrypt.key` 纳入权限体系，配合 Vault 集中托管，并收敛不必要的 `/encrypt` 暴露面。",
+            "core": "考察 encrypt.key 对称与 JKS 非对称加密、cipher 占位符解密时机，以及加密端点鉴权与密钥纳管。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod6-nacos",
+        "title": "B. Nacos Config 动态刷新（高级）",
+        "qs": [
+          {
+            "id": "m6q4",
+            "q": "Nacos 的 dataId、group、namespace 如何划分，配置优先级怎样？",
+            "answer": "三者隔离层级由粗到细：`namespace` 用于租户或环境隔离，例如 dev 与 prod，不同命名空间互不可见；`group` 按业务或应用分组，默认 `DEFAULT_GROUP`；`dataId` 定位具体文件，默认按 `prefix` 加激活 `profile` 加 `file-extension` 拼成。\n除主配置外，`shared-configs` 放多应用共用的中间件配置，`extension-configs` 放应用专属扩展配置，二者都支持 `data-id`、`group` 和 `refresh` 开关。优先级上，带 profile 覆盖不带 profile，同类数组内后声明覆盖先声明，一般主配置高于扩展与共享。",
+            "core": "考察 namespace 与 group 的隔离粒度、dataId 拼接规则，以及共享、扩展、主配置的覆盖顺序与 refresh 粒度控制。",
+            "follow": ""
+          },
+          {
+            "id": "m6q5",
+            "q": "动态刷新注解 @RefreshScope 的原理是什么，哪些场景下配置刷新会失效？",
+            "answer": "`@RefreshScope` 是 `Spring Cloud` 自定义的 `Scope`，不直接改字段，而是为 Bean 生成代理并缓存实例。收到 `EnvironmentChangeEvent` 或调用 `/actuator/refresh` 时，`RefreshScope.refreshAll` 清空缓存、销毁旧实例。\n失效场景有几类：`final` 字段或构造期固化到常量的值无法重绑，`static` 静态字段不属于 Bean 生命周期、刷新不到，被 `HikariCP`、`Druid` 等连接池在启动时读取一次的参数也不会随刷新重建，除非销毁并重建数据源。用 `@RefreshScope` 包裹有状态 Bean 还会丢失内存状态。生产应把动态参数收敛到独立配置类。",
+            "core": "考察代理加缓存销毁重建的刷新机制、Value 与 ConfigurationProperties 差异，以及 final、静态字段与连接池失效场景。",
+            "follow": "若某个 Druid 数据源的最大连接数需要动态调整，光加 @RefreshScope 不够，应该怎么改造才能在刷新后真正生效？请说明监听刷新事件重建 Bean 的做法，并指出直接改运行时对象为何不可靠。"
+          },
+          {
+            "id": "m6q6",
+            "q": "Nacos Config 的长轮询机制如何工作，配置灰度发布与版本回滚该怎么做？",
+            "answer": "客户端并非频繁短轮询，而是发起带 Long-Pulling 的 HTTP 请求并挂起约 30 秒，服务端用 Servlet 3.0 异步 hold 住连接；期间配置变更立即返回变更的 `dataId` 与 `group`，无变更则超时返回空，客户端再发起下一轮。客户端本地有 snapshot 快照，Server 不可用时可降级读本地文件启动。\n灰度依托 `group` 或 beta 发布能力，先让部分实例 Ip 列表加载新配置，验证无误再全量；控制台保留历史版本与操作审计，回滚时选中历史版本恢复 `dataId` 内容并触发推送。落地要固化 `namespace`、`group`、`dataId` 命名规范，灰度期结合 `refresh` 开关与监控观察错误率，回滚后确认各实例 `MD5` 一致。",
+            "core": "考察长轮询挂起与 MD5 比对、本地快照降级，以及基于 beta 灰度、历史版本回滚与实例一致性验证。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod6-bus",
+        "title": "C. Bus、选型与生产坑（进阶）",
+        "qs": [
+          {
+            "id": "m6q7",
+            "q": "Spring Cloud Bus 如何工作，busrefresh 端点怎样做定向刷新？",
+            "answer": "Bus 用消息中间件把各实例连成轻量总线，默认支持 `RabbitMQ` 与 `Kafka`，通过 `spring-cloud-starter-bus-amqp` 等接入。它在每个应用建独立 `Exchange` 与队列并绑定，配置变更时把 `RefreshRemoteApplicationEvent` 广播出去。\n触发端点是 `/actuator/busrefresh`，旧版 `/bus/refresh` 已废弃，需暴露 `busrefresh` 与 `refresh` 端点并用 POST 调用。默认广播给所有实例，可用 `destination` 参数定向，例如按服务名加端口或服务名加双星通配只刷某类实例，配合 `spring.cloud.bus.id` 标识节点。",
+            "core": "考察 Bus 基于消息中间件广播刷新事件的机制、busrefresh 端点与 destination 定向语法，以及旧端点变更。",
+            "follow": ""
+          },
+          {
+            "id": "m6q8",
+            "q": "Config Server 结合 Bus 实现全量刷新时，刷新执行者与作用域注解如何配合？",
+            "answer": "典型链路是：改 Git 配置后调用 Config Server 的 `/actuator/busrefresh`，Server 经 Bus 广播 `RefreshRemoteApplicationEvent`，各 Config Client 收到后由 `ContextRefresher.refresh` 重新拉取 `Environment`。\n`ContextRefresher` 是刷新执行者，负责重建 `Environment`、比对差异并发出事件；`@RefreshScope` 是被刷新对象的标记，决定哪些 Bean 走代理重建。只有加了 `@RefreshScope` 或本身是 `@ConfigurationProperties` 的 Bean 才会重绑。",
+            "core": "考察 Git 到 Bus 事件到 ContextRefresher 到 RefreshScope 的刷新链路，以及执行者与刷新标记的职责边界。",
+            "follow": ""
+          },
+          {
+            "id": "m6q9",
+            "q": "Nacos Config 与 Config Server 在选型上该如何对比取舍？",
+            "answer": "定位不同：Config Server 是纯配置服务，配置存 Git、Vault 或 JDBC，天然带版本与审计，但动态刷新必须额外搭 `Spring Cloud Bus` 和消息中间件，组件多、链路长；Nacos Config 把存储、长轮询推送、灰度回滚、鉴权都内置，客户端秒级感知，无需 Bus，运维面更小。前者与 `Spring Cloud` 生态同源。\n选型看几个维度：若已重度使用 Git 工作流、需要强审计合规或跨语言统一配置，Config Server 更顺；若追求开箱即用的动态刷新、灰度回滚并希望少维护一套 MQ，Nacos 更合适。还要评估注册中心是否统一、多环境隔离与运维熟悉度。很多团队让 Nacos 同时承担注册与配置，但要把配置变更纳入发布流程与权限管控，避免随意改动引发波动。",
+            "core": "考察两者在存储后端、刷新是否依赖 Bus、灰度回滚与运维复杂度上的差异，以及按团队栈选型的判断维度。",
+            "follow": ""
+          },
+          {
+            "id": "m6q10",
+            "q": "配置中心有哪些常见生产坑，配置不生效、本地覆盖远端、敏感配置泄露与权限该如何治理？",
+            "answer": "配置不生效常见根因有：`dataId` 与 `group` 或 `namespace` 拼错、`file-extension` 与格式不符、漏了 `spring.config.import` 或 `spring-cloud-starter-bootstrap`、改动项没加 `@RefreshScope`，以及 `final` 或静态字段无法重绑。\n治理上固化优先级规范：远端高于本地，本地只留引导期必需项，禁止用命令行参数兜底业务配置。敏感信息不落明文，走 `Vault`、`JKS` 加密或 `{cipher}` 占位，按 `namespace` 做读写权限分级、开启审计与变更审批，密钥轮换纳入流程。生产还要给变更加灰度与回滚窗口，监控对比各实例 `MD5`，防止误改或泄露引发大面积故障。",
+            "core": "考察配置不生效的定位清单、属性优先级与 allow-override 覆盖坑，以及密文托管、权限分级、审计回滚的治理手段。",
+            "follow": "如果线上发现部分实例配置值不一致，如何快速定位是加载失败、刷新丢失还是被本地参数覆盖？请给出排查顺序，并说明各阶段该看哪些日志与端点。"
+          }
+        ]
+      }
+    ]
+  }
+]

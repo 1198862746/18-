@@ -1,0 +1,190 @@
+[
+  {
+    "n": 3,
+    "title": "OpenFeign",
+    "groups": [
+      {
+        "id": "mod3-basic",
+        "title": "A. 声明式调用原理（中级）",
+        "qs": [
+          {
+            "id": "m3q1",
+            "q": "OpenFeign 声明式调用的底层原理是什么，接口动态代理与注解契约解析如何协作？",
+            "answer": "OpenFeign 基于 JDK 动态代理，启动时 `FeignClientFactoryBean` 为接口生成代理，每个方法对应一个同步方法处理器。接口上的 MVC 注解不经 MVC 框架执行，而由 `Contract` 解析，默认实现把请求映射与参数绑定翻译成方法元数据。`Target` 绑定服务名和基础地址，最终把元数据拼成 `RequestTemplate`，为发请求做好准备。\n调用时 `Encoder` 编码参数与请求体，`Client` 执行 HTTP 请求，`Decoder` 反序列化响应，异常交给 `ErrorDecoder`。源码上代理逻辑落在 `ReflectiveFeign`。可把 `Contract` 换成 Feign 原生契约或替换编解码器，但要注意默认契约与 Spring MVC 版本兼容，别在接口上叠加复杂绑定注解。",
+            "core": "考察是否理解声明式调用并非生成客户端代码，而是动态代理加契约解析与请求模板拼装，以及各核心组件的职责边界。",
+            "follow": ""
+          },
+          {
+            "id": "m3q2",
+            "q": "Feign 接口复用 Spring MVC 注解有哪些限制，接口继承和独立配置应注意什么？",
+            "answer": "复用靠 `SpringMvcContract` 把 `@RequestMapping` 等注解翻译成方法元数据，但有边界：不要在接口上标 `@RequestMapping`，否则可能被 MVC 当成控制器映射；矩阵变量、`@ModelAttribute` 一类复杂绑定并不支持。接口继承父接口时注解会被重复解析、路径容易叠加，官方明确不推荐用继承复用 Feign 声明。\n每个客户端由 `FeignContext` 维护独立子容器，配置类只在该子容器生效。坑在于标了 `@Configuration` 的 `configuration` 类若被主上下文组件扫描捕获，就会升级成全局配置，让所有客户端共享同一 `Encoder` 或 `Retryer`；正确做法是不加 `@Configuration`，或把配置类放到扫描路径之外。",
+            "core": "考察 MVC 注解的兼容边界、接口继承带来的隐患，以及每个客户端独立子容器引发的配置隔离与常见配置污染问题。",
+            "follow": "若 `configuration` 配置类被主上下文的组件扫描捕获会有什么后果，如何用 `FeignContext` 子容器或调整扫描范围，避免所有客户端被迫共享同一套编解码器？"
+          },
+          {
+            "id": "m3q3",
+            "q": "对比 Feign、RestTemplate 和 WebClient 的线程模型，如何按场景做选型？",
+            "answer": "`RestTemplate` 是同步阻塞模板，基于 `ClientHttpRequestFactory`，等待响应时线程一直被占用，官方已转入维护模式。`WebClient` 属响应式非阻塞客户端，跑在 Reactor Netty 上，返回 `Mono` 与 `Flux`，少量事件循环线程即可支撑高并发。OpenFeign 同为阻塞模型，但胜在声明式接口与微服务生态集成。\n选型看技术栈与并发特征：同步的微服务内部调用首选 Feign，配合 `LoadBalancer` 与熔断降级开箱即用；聚合大量下游或流式长连接场景用 WebClient 避免线程堆积；遗留项目才保留 RestTemplate。特别注意响应式栈里别混入阻塞调用，否则占住 Netty 事件循环，必要时用独立调度器隔离。",
+            "core": "考察三者在阻塞与非阻塞模型、维护状态上的差异，以及能否结合技术栈与并发特征给出合理选型而非只看调用形式。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod3-resilience",
+        "title": "B. 超时、重试与降级（高级）",
+        "qs": [
+          {
+            "id": "m3q4",
+            "q": "生产环境如何设置 Feign 的连接超时和读取超时，怎样替换默认的 HTTP 客户端？",
+            "answer": "超时用 `spring.cloud.openfeign.client.config.default.connectTimeout` 与 `readTimeout` 配置，单位毫秒，`default` 为全局，键换成服务名即按实例覆盖。注意 Spring Cloud 2020 之后前缀由旧的 feign.client.config 迁移而来，沿用旧写法会静默失效，按服务名的优先级高于全局默认。\n默认 `Client.Default` 基于 `HttpURLConnection`，没有连接池。引入 `feign-okhttp` 或 `feign-httpclient` 并开启 `enabled` 开关后，`FeignAutoConfiguration` 按条件装配替换实现，从而复用连接池。连接超时小于读取超时，读取超时又要小于网关与下游预算。",
+            "core": "考察是否掌握新版超时配置前缀与全局、按实例的粒度，理解默认客户端无连接池的缺陷及条件装配替换方式。",
+            "follow": ""
+          },
+          {
+            "id": "m3q5",
+            "q": "Feign 默认重试行为如何，为什么与负载均衡重试叠加会引发重试风暴，如何治理？",
+            "answer": "Feign 自带 `Retryer.Default`，但 Spring Cloud OpenFeign 默认注入 `Retryer.NEVER_RETRY` 关闭这一层，把重试交给负载均衡或 `Spring Retry`。若同时开启 `Retryer`、`RetryTemplate` 与负载均衡的 `MaxAutoRetries`，一次失败会被两层笛卡尔式放大，下游瞬时流量成倍增长。\n治理原则是只保留一层重试，优先放在网关或负载均衡侧；设总次数上限与整体超时预算，只对幂等 GET 重试，区分连接异常与 5xx，配合指数退避加抖动。生产显式用 `Retryer.NEVER_RETRY` 关掉 Feign 层，写操作靠幂等键而非重试兜底，并让重试与熔断、隔离联动避免雪崩。",
+            "core": "考察能否识别两层重试叠加的放大效应，并给出单点重试、幂等约束、退避策略与熔断联动的治理方案。",
+            "follow": "一次下游 500 毫秒超时在两层各重试 3 次的组合下最多产生多少次请求，你会如何用超时预算和幂等键约束写操作重试带来的重复提交风险？"
+          },
+          {
+            "id": "m3q6",
+            "q": "两种 Feign 降级方式有什么本质区别，哪一种能拿到具体的异常原因？",
+            "answer": "`fallback` 要求实现类与接口方法一一对应并注册为容器 Bean，只能返回固定兜底值，拿不到失败原因；`FallbackFactory` 的 `create` 回调会收到触发降级的 `Throwable`，可据此区分超时、`DecodeException`、4xx 还是 5xx，做差异化兜底与日志打点，一个工厂还能服务多个接口。\n二者都由熔断器触发，在 `@FeignClient` 上用 `fallback` 或 `fallbackFactory` 属性指定，目标类必须是容器 Bean。降级只是返回兜底而非真实结果，`ErrorDecoder` 抛出的异常经工厂可见，别把业务异常静默吞掉；生产常把 cause 写入链路日志与告警，避免故障被掩盖成正常空数据。",
+            "core": "考察两种降级方式在能否获取触发异常上的本质差异，以及降级工厂与熔断器、异常解码链路之间的联动关系。",
+            "follow": ""
+          },
+          {
+            "id": "m3q7",
+            "q": "自定义 `ErrorDecoder` 如何影响异常传播，降级兜底后的本地事务与幂等要如何处理？",
+            "answer": "默认 `ErrorDecoder.Default` 把非 2xx 包装成 `FeignException`，携带 `status` 与响应体；自定义 `ErrorDecoder` 在 `decode` 里按业务码转自定义异常，或抛 `RetryableException` 触发重试，也让 `FallbackFactory` 感知原因。它只作用于解码阶段，连接超时不经这里。\n降级返回的是兜底值，若调用落在本地事务里，绝不能把降级成功当作下游已提交；写操作要带幂等键，配合唯一索引或状态机去重，读降级可返回缓存或空集合。生产把远程调用放在事务外，用最终一致与补偿任务收敛，避免长事务与重复扣减，并把降级事件单独记录便于对账与人工补偿。",
+            "core": "考察异常解码与传播链路、降级语义与本地事务边界的冲突，以及写操作靠幂等与补偿而非依赖降级结果保证一致性。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod3-observe",
+        "title": "C. 日志、链路与调优（进阶）",
+        "qs": [
+          {
+            "id": "m3q8",
+            "q": "Feign 首次调用为何偏慢，命名上下文与懒加载机制该怎样做启动预热？",
+            "answer": "首次调用慢源于懒加载：代理虽在启动时创建，但负载均衡 `LoadBalancerClient` 拉取实例列表、`FeignContext` 为每个客户端建子容器并初始化编解码器与连接池，都延迟到第一请求。`FeignContext` 继承 `NamedContextFactory`，为每个服务名维护独立应用上下文，首次取用才实例化这批 Bean。\n预热：启动后用 `ApplicationRunner` 主动触发各客户端首调，开启 `spring.cloud.loadbalancer.cache` 与饿汉式发现把实例预取，新版可用 `spring.cloud.loadbalancer.eager-load.clients` 指定预加载服务。配合就绪探针，预热完成前不接流量，滚动发布要保证最小可用副本数。",
+            "core": "考察能否把首调延迟定位到子容器懒加载、实例拉取与连接池初始化，并给出饥饿加载、主动预热与就绪探针等方案。",
+            "follow": "若服务在 K8s 中滚动发布，预热尚未完成就被探针判为就绪并灌入流量，你如何用就绪探针、`ApplicationRunner` 和最小副本数配合，避免首批请求超时？"
+          },
+          {
+            "id": "m3q9",
+            "q": "请求拦截器透传链路标识和认证头时，为什么异步线程里会丢失，怎么解决？",
+            "answer": "`RequestInterceptor` 的 `apply` 在调用线程执行，从 `RequestContextHolder` 或 `ThreadLocal` 取值写入 `RequestTemplate` 的 header。一旦用 `@Async` 或 `CompletableFuture` 切换线程，子线程读不到线程本地变量，header 就丢失，下游拿不到链路标识、鉴权直接 401。\n根治：显式把上下文对象当参数传进异步任务，用 `TaskDecorator` 包装 `ThreadPoolTaskExecutor` 复制 MDC，或用 `TransmittableThreadLocal` 透传；响应式栈改 Reactor `Context`。认证头建议网关统一解析后放行，Feign 只透传快照并清除伪造同名头；生产加缺失断言日志与告警。",
+            "core": "考察请求拦截器依赖线程本地变量的本质、异步切换导致上下文丢失的根因，以及任务装饰器与响应式上下文等解法。",
+            "follow": ""
+          },
+          {
+            "id": "m3q10",
+            "q": "把 Feign 日志开到 FULL 有何代价，压缩与 Jackson、Fastjson 各有哪些坑？",
+            "answer": "日志有 NONE、BASIC、HEADERS、FULL 四档，FULL 打印请求与响应 body 及全部 header，代价是序列化整个报文、大量 I/O 与磁盘写，还可能把 token、手机号写进日志造成泄露；且 `Logger.Level` 要配合该客户端日志为 DEBUG 才生效。生产保持 BASIC 或 HEADERS 并脱敏，仅调试期按客户端开 FULL。\n压缩用 `feign.compression.request.enabled` 与 `response.enabled`，要配合 `Decoder` 处理 gzip。序列化默认用 `SpringEncoder` 与 `SpringDecoder`，换 Fastjson 需自定义编解码器，处理日期格式、`null` 字段、泛型擦除与 `Content-Type`，否则易字段丢失。",
+            "core": "考察 FULL 级别的性能与数据泄露风险、压缩配置的编解码协同，以及替换默认序列化器时日期、空值与泛型的兼容问题。",
+            "follow": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "n": 4,
+    "title": "Spring Cloud Gateway",
+    "groups": [
+      {
+        "id": "mod4-core",
+        "title": "A. Route、Predicate 与 Filter（中级）",
+        "qs": [
+          {
+            "id": "m4q1",
+            "q": "Gateway 的路由三要素是什么，一次请求在 WebFlux 与 Netty 上的执行流程怎样？",
+            "answer": "三要素是路由（ID、目标地址、断言与过滤器集合）、断言（接收 `ServerWebExchange` 的函数，全部命中才匹配）和过滤器。网关基于 Spring WebFlux 与 Reactor Netty，全程非阻塞：请求先由 `RoutePredicateHandlerMapping` 匹配路由，再交给 `FilteringWebHandler` 组装过滤器链。\n链上 `GlobalFilter` 与 `GatewayFilter` 被适配成同一过滤器并按 `Ordered` 排序，前置正序、后置在响应返回时逆序执行，`NettyRoutingFilter` 用响应式 `HttpClient` 转发。过滤器里不能做同步阻塞调用或用线程本地变量传值，否则拖垮事件循环，应改用响应式写法与交换对象属性传递上下文。",
+            "core": "考察是否掌握路由三要素的职责与匹配流程，并明确网关基于 WebFlux 与 Netty 的非阻塞模型而非 Servlet 容器。",
+            "follow": "既然网关跑在 Netty 事件循环上，某个自定义过滤器里做了同步数据库查询或 `Thread.sleep` 会有什么后果，如何用响应式写法或独立调度器隔离阻塞调用？"
+          },
+          {
+            "id": "m4q2",
+            "q": "列举常用的路由断言工厂并说明它们如何组合，权重和时间类断言适合什么场景？",
+            "answer": "常用断言工厂按用途分：路径 `Path`、方法 `Method`、请求头 `Header`、查询参数 `Query`、Cookie、时间 `After`（另有 Before、Between）与权重 `Weight`，都由 `RoutePredicateFactory` 产出。配置以 name 加 args 书写，多个断言之间是与关系，全部命中才选中路由。\n组合时 Path 定路径、Method 限方法、Header 与 Cookie 做灰度或租户识别、Query 校验必填参数；`Weight` 按分组与权重比例分流，常用于金丝雀，`After` 配 `ZonedDateTime` 做定时上线或活动开关。断言短路与书写顺序无关，权重需同组之和与路由顺序配合，且不保证会话粘滞。",
+            "core": "考察对路径、方法、请求头、查询、Cookie、权重与时间断言的熟悉度，以及逻辑与组合、权重分组和定时断言的典型用法。",
+            "follow": ""
+          },
+          {
+            "id": "m4q3",
+            "q": "两种路径过滤器改写请求路径的行为有何不同，拼接下游地址时容易踩哪些坑？",
+            "answer": "`StripPrefix` 只按段数丢弃路径前缀，配置为 1 时把 /api/user/1 变成 /user/1，不改变剩余结构；`RewritePath` 用正则加替换串整体重写，可任意增删改路径。前者是简单剥离，后者是灵活重排，二者都作用于转发前的路径，区别在是否允许改变路径结构。\n坑：段数写错导致多删或少删，和 `Path` 断言捕获变量混淆；正则未锚定、替换串写法有误、YAML 里 `$` 需转义，命名捕获组在 Java 正则里也有固定格式。二者都影响 `lb://service` 拼接，转发地址自带 path 会叠加前缀；务必用网关端点查看实际生效路由后再压测验证。",
+            "core": "考察能否区分按段剥离与正则重写两种语义，并识别段数计数、正则替换、转义和下游地址叠加等路径拼接陷阱。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod4-filter",
+        "title": "B. 过滤器、限流与动态路由（高级）",
+        "qs": [
+          {
+            "id": "m4q4",
+            "q": "全局过滤器与路由过滤器的作用范围有何不同，`Ordered` 如何决定执行顺序？",
+            "answer": "`GlobalFilter` 是全局 Bean，作用于所有路由，无需在路由声明，典型如 `NettyRoutingFilter`、`ForwardRoutingFilter`；`GatewayFilter` 由 `GatewayFilterFactory` 产出，绑定具体路由，只对匹配请求生效。二者最终被 `FilteringWebHandler` 适配成同一条过滤器链。\n顺序由 `Ordered` 的 `getOrder` 决定，值越小越靠前；内置全局过滤器占据转发前后关键位置，自定义鉴权要排在转发之前。前置按 order 正序执行，后置在响应返回时逆序执行；全局与路由级统一排序，别依赖 YAML 书写顺序推断，调试时可打印各过滤器 order 核对。",
+            "core": "考察全局与路由级过滤器在绑定方式上的差异、同一过滤器链的适配机制，以及排序值正序前置与逆序后置的规律。",
+            "follow": ""
+          },
+          {
+            "id": "m4q5",
+            "q": "网关限流过滤器用的是什么算法，限流键如何定义，Redis 在其中承担什么角色？",
+            "answer": "`RequestRateLimiter` 默认基于 Redis 令牌桶，依赖 `RedisRateLimiter` 用 Lua 脚本在 Redis 原子取令牌，保证集群多实例计数一致。核心参数 `replenishRate` 是每秒补充速率，`burstCapacity` 是桶容量，`requestedTokens` 是单次消耗令牌数，超限返回 429。\n`KeyResolver` 决定限流维度，可按 IP、用户 ID、接口路径或租户取 key；新版本不再提供默认 Bean，必须自定义并用 `SpEL` 表达式引用，否则找不到 key resolver 而放行或报 403。可用 `denyEmptyKey` 控制空 key 行为，生产还要监控 Redis 延迟与连接池，避免限流组件自身成为瓶颈。",
+            "core": "考察是否理解 Redis 令牌桶与脚本原子计数、补充速率与桶容量的含义，以及自定义限流键与表达式引用的必填性。",
+            "follow": ""
+          },
+          {
+            "id": "m4q6",
+            "q": "如何基于路由定义仓储与 Nacos 实现动态路由，Actuator 网关端点在刷新中怎么用？",
+            "answer": "静态路由来自配置文件或 `RouteDefinitionLocator`；动态路由要实现 `RouteDefinitionRepository`，它同时具备读取与写入能力，把 `RouteDefinition` 存到 Nacos 等配置中心，重写读取、保存、删除三个方法，监听配置变更后发布 `RefreshRoutesEvent` 通知网关。\n刷新由 `RouteRefreshListener` 监听事件触发 `CachingRouteLocator` 重建缓存路由；也可调用 Actuator 的 `POST /actuator/gateway/refresh` 强制刷新，`GET /actuator/gateway/routes` 查看生效路由。刷新是整表重建而非增量，配置格式要与代码一致，并处理 Nacos 断连与校验。",
+            "core": "考察路由定义仓储与写入器的扩展点、刷新事件重建缓存的链路，以及 Actuator 网关端点查看与强制刷新的用法和配置校验。",
+            "follow": "动态路由刷新时若某条 Nacos 配置写错了断言名称，网关会整表重建失败还是仅该条失效，你如何用 `CachingRouteLocator`、配置校验和灰度发布把影响面降到最小？"
+          },
+          {
+            "id": "m4q7",
+            "q": "网关统一鉴权和业务服务鉴权该如何划分职责，JWT 校验后怎样安全透传用户信息？",
+            "answer": "网关做边界认证：校验 `JWT` 签名、过期与黑名单，完成粗粒度鉴权与限流，失败直接返回 401 或 403，避免无效流量打到内网；业务服务负责细粒度授权，如数据权限与资源归属，并做二次校验，不能因网关放行就完全信任。纵深防御下服务间调用也应携带凭证或使用双向 TLS。\n透传时网关校验令牌后把用户 ID、租户与角色写入下游请求头，并清除外部伪造的同名头，防止头部欺骗；避免整个令牌裸传，必要时改用内部签名头。响应式里用 `ServerWebExchange` 的 mutate 重建请求，过滤器顺序要早于路由转发。生产配合密钥轮换、共享公钥与审计日志。",
+            "core": "考察边界认证与细粒度授权的分层、令牌校验内容，以及用户信息透传时的头部伪造防护与请求重建写法。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod4-prod",
+        "title": "C. 鉴权、CORS 与排障（进阶）",
+        "qs": [
+          {
+            "id": "m4q8",
+            "q": "网关层配置 CORS 为何会出现响应头重复，OPTIONS 预检请求该如何正确处理？",
+            "answer": "CORS 可用 `spring.cloud.gateway.globalcors.corsConfigurations` 全局配置。重复头常因网关与下游都加了 `Access-Control-Allow-Origin`，叠加后多个值让浏览器报错；原则是跨域只在网关统一处理，或用 `DedupeResponseHeaderGatewayFilterFactory` 去重。\n预检 OPTIONS 不带认证头、不应打到下游，网关应直接放行并返回允许的方法、头与来源，配合 `Access-Control-Max-Age` 缓存结果；鉴权过滤器要识别并跳过 OPTIONS，否则预检被 401 拦截。生产注意 `allowedOriginPatterns` 的通配符不能和 `allowCredentials` 为真同用，Vary 头也要正确。",
+            "core": "考察全局跨域配置、多来源重复响应头的去重策略，以及预检请求在网关短路返回并绕过鉴权的处理方式。",
+            "follow": ""
+          },
+          {
+            "id": "m4q9",
+            "q": "如何基于权重与自定义 Header 做灰度路由，链路染色标识该如何全链路透传？",
+            "answer": "灰度可用 `WeightRoutePredicateFactory` 按分组与权重分流，例如 v1 占九成、v2 占一成，或自定义断言读取请求头里的灰度标签、Cookie 或用户标签命中灰度路由，再配合 `RewritePath` 把请求导向带版本元数据的实例，由 `LoadBalancer` 按注册中心 metadata 选目标。\n染色：入口网关生成或校验染色标识写入请求头，通过过滤器透传；Feign 侧用 `RequestInterceptor` 复制该头，异步线程用 `TaskDecorator` 或 Reactor `Context` 传递，日志用 MDC 与链路标识关联，消息队列也把染色放进消息头。生产要防伪造染色头、设白名单，并做独立监控与一键回滚。",
+            "core": "考察权重断言与自定义请求头断言的灰度实现、实例元数据选路，以及染色标识跨网关、远程调用、异步与消息的端到端透传。",
+            "follow": ""
+          },
+          {
+            "id": "m4q10",
+            "q": "网关返回 503、504 或连接被重置时，请给出从入口到下游的完整排查路径？",
+            "answer": "先分层定位：503 多为 `LoadBalancer` 找不到实例，如服务未注册、健康检查失败、`lb://` 服务名写错，应查注册中心实例列表；504 多为下游超时，核对 `spring.cloud.gateway.httpclient.connect-timeout` 与 `response-timeout`；连接被重置则看下游主动断连、keep-alive 与连接池。\n工具链：用 `GET /actuator/gateway/routes` 确认路由生效，开 DEBUG 日志看 `RoutePredicateHandlerMapping` 与 `NettyRoutingFilter`，抓 Netty 访问日志与响应时间、5xx 比例，核对压缩、TLS 一致；再逐段用 curl 与 telnet 复现，定位是注册、网络还是应用问题。",
+            "core": "考察能否按服务发现、超时、连接重置三类成因分层定位，并熟练运用端点、日志、指标与逐段复现的排障路径。",
+            "follow": "若只有大响应体接口偶发连接重置而小请求正常，你会重点检查哪些配置，如何区分是网关响应超时、下游 `maxInMemorySize` 限制还是 Netty 连接池与 keep-alive 问题？"
+          }
+        ]
+      }
+    ]
+  }
+]

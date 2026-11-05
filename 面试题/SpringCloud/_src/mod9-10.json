@@ -1,0 +1,190 @@
+[
+  {
+    "n": 9,
+    "title": "契约测试与版本选型",
+    "groups": [
+      {
+        "id": "mod9-contract",
+        "title": "A. 消费者驱动契约（中级）",
+        "qs": [
+          {
+            "id": "m9q1",
+            "q": "消费者驱动契约解决了什么问题，与端到端集成测试应如何取舍？",
+            "core": "考察消费者驱动契约解决的核心问题、与端到端集成测试的取舍边界，以及契约先行上下游协作流程的理解。",
+            "follow": "",
+            "answer": "消费者驱动契约让消费方先以契约描述对提供方的期望，提供方据此生成验证测试，双方无需同时启动即可独立演进。它把集成验证前移到构建期，避免端到端环境不稳定、部署串行和数据准备昂贵的问题，契约即文档，失败时能精确定位到是消费方期望变化还是提供方实现发生变化。\n取舍上用大量快速的契约测试替代多数端到端用例，仅保留少量覆盖真实网络、鉴权和数据库事务的冒烟级端到端测试。落地时契约放在提供方仓库，由消费方提交变更发起协作，配合 `Stub Runner` 拉取 stub 做消费方隔离测试，CI 中契约不通过就阻断发布，从流程上防止破坏性变更。"
+          },
+          {
+            "id": "m9q2",
+            "q": "Spring Cloud Contract 从契约定义到生成测试与 stub 的完整流程是怎样的？",
+            "core": "考察 Spring Cloud Contract 契约定义、插件生成验证测试与 WireMock stub 发布的完整工作流与关键配置。",
+            "follow": "如果契约改用 YAML 而非 Groovy DSL 编写，插件在匹配规则与动态响应上的表达能力会有哪些差异，多语言团队该如何统一契约规范？",
+            "answer": "契约默认放在生产者 `src/test/resources/contracts` 下，可用 Groovy DSL 或 YAML 编写，描述请求、响应与匹配规则。`spring-cloud-contract-maven-plugin` 的 `generateTests` 目标会解析契约。\n消费方引入 `spring-cloud-starter-contract-stub-runner`，用 `@AutoConfigureStubRunner` 声明 `ids` 与 `stubsMode`，`Stub Runner` 从远程仓库或本地 `m2` 下载 stub 并启动内嵌 WireMock，从而脱离真实提供者运行。"
+          },
+          {
+            "id": "m9q3",
+            "q": "Stub Runner 如何保证契约版本兼容，契约变更时上下游应如何协作？",
+            "core": "考察 Stub Runner 的 stub 坐标与版本锁定方式、契约向后兼容原则及变更协作发布流程。",
+            "follow": "",
+            "answer": "契约版本通常跟随生产者版本，stub jar 以 `groupId:artifactId:version:stubs` 坐标发布，`Stub Runner` 通过 `ids` 精确指定版本或设 `stubsMode` 为 `LOCAL` 与 `REMOTE` 控制来源。\n契约变更遵循向后兼容原则：只新增字段和可选分支，删除或修改字段必须升主版本并双写过渡。协作流程是消费方在生产者仓库提交契约变更与失败测试，生产者补齐实现并通过 `generateTests` 后发布新 stub，消费方再升级 `ids`。配合 `Stub Runner` 的 `properties` 与契约分支策略，可在灰度期并行验证新旧两版契约。"
+          }
+        ]
+      },
+      {
+        "id": "mod9-version",
+        "title": "B. 版本矩阵与升级（高级）",
+        "qs": [
+          {
+            "id": "m9q4",
+            "q": "Boot、Cloud 与 Spring Cloud Alibaba 版本兼容矩阵如何查？",
+            "core": "考察 Boot、Cloud 与 Spring Cloud Alibaba 三者版本对应矩阵的查询方式与依赖树冲突排查手段。",
+            "follow": "",
+            "answer": "版本矩阵以 Spring Cloud 官方 `spring-cloud-dependencies` 的发布说明与 Spring Cloud Alibaba 仓库 README 的版本对应表为准，三者是 Boot、Cloud、SCA 的强绑定关系，必须整体升级。例如 Hoxton.SR3 对应 SCA 2.2.x 系列，底层对齐 Boot 2.2 或 2.3。\n排查时先看 `spring-cloud-dependencies` 导入的 BOM，再用 `mvn dependency:tree` 核对实际解析版本，重点检查 `spring-cloud-commons`、`spring-cloud-context` 与 `spring-cloud-alibaba-dependencies` 是否被间接覆盖。"
+          },
+          {
+            "id": "m9q5",
+            "q": "Spring Cloud 2020.0.x 版本号变更与 Netflix 组件移除带来哪些改造？",
+            "core": "考察 Spring Cloud 版本号日历化变更、Netflix 组件移除范围以及对应替代组件的迁移改造路径。",
+            "follow": "升级到 2020.0.x 后若短期无法替换 Ribbon，能否自行引入旧版 Netflix starter 过渡，这种做法在依赖兼容与后续维护上有哪些风险？",
+            "answer": "Spring Cloud 从 2020.0.x（代号 Ilford）起改用日历化版本 `YYYY.MINOR.PATCH`，取代此前按伦敦地铁站命名的 Hoxton、Greenwich 等列车版本，便于表达与 Boot 的对应节奏。2020.0.0 同时把除 Eureka 外的 Netflix 组件移出发布列车。\n改造上服务调用改用 `Spring Cloud LoadBalancer` 替代 Ribbon，熔断限流换成 Resilience4j 或 Sentinel，网关换成 `Spring Cloud Gateway`，配置走 `spring.config.import` 与 Config Data API。"
+          },
+          {
+            "id": "m9q6",
+            "q": "bootstrap 上下文默认关闭后如何导入远程配置？",
+            "core": "考察 bootstrap 上下文被默认关闭的原因、spring.config.import 迁移细节与 Config Data API 理解。",
+            "follow": "",
+            "answer": "Boot 2.4 起重写了配置加载模型并引入 Config Data API，Cloud 2020.0.x 默认不再创建 bootstrap 父上下文，`bootstrap.yml` 与 `spring.cloud.bootstrap.enabled` 失效，导致依赖 Nacos 或 Config Server 早期加载的配置读不到。\n推荐迁移到 `spring.config.import`，例如用 `optional:configserver:` 或 `optional:nacos:` 前缀把远程配置纳入标准 `Environment`，并配合 `spring.config.activate.on-profile` 做环境差异。"
+          },
+          {
+            "id": "m9q7",
+            "q": "从 Spring Boot 2.2 升级到 2.7 或 3.x 需要完成哪些主要改造？",
+            "core": "考察 Boot 2.7 配置属性迁移与 Boot 3 的 Java 17 基线、Jakarta 命名空间升级改造要点。",
+            "follow": "",
+            "answer": "升到 Boot 2.7 主要是配置属性重命名与基础设施升级，例如 `spring.redis` 迁到 `spring.data.redis`、部分 `server` 与 `management` 键变更，需引入 `spring-boot-properties-migrator` 在启动时打印失效属性并逐项整改。\n升到 Boot 3 门槛更高：基线要求 Java 17，且基于 Jakarta EE 9，全部 `javax.*` 包名要迁到 `jakarta.*`，`HttpServletRequest`、`Validation` 与 `Persistence` 及 Servlet 容器均受影响。"
+          }
+        ]
+      },
+      {
+        "id": "mod9-upgrade",
+        "title": "C. 组件退役与治理（进阶）",
+        "qs": [
+          {
+            "id": "m9q8",
+            "q": "Netflix 组件退役后 Ribbon、Hystrix、Zuul 等分别应如何替换？",
+            "core": "考察 Ribbon、Hystrix、Zuul 等 Netflix 组件退役后的替代清单与行为差异带来的代码改造点。",
+            "follow": "",
+            "answer": "替代清单需按职责逐项落地：客户端负载均衡由 Ribbon 换为 `Spring Cloud LoadBalancer` 并可自定义 `ReactiveLoadBalancer`；熔断与舱壁隔离由 Hystrix 换为 Resilience4j 或 Alibaba Sentinel。\n注册发现方面 Eureka 仍属维护态，可直接迁到 Nacos 或 Consul，迁移期用双注册双订阅平滑过渡。改造要注意行为差异：Ribbon 的 `IRule` 与 `NFLoadBalancer` 规则需重写为 LoadBalancer 的 `ServiceInstanceListSupplier`。"
+          },
+          {
+            "id": "m9q9",
+            "q": "多版本共存与灰度升级时如何用 BOM 治理并排查依赖冲突？",
+            "core": "考察 BOM 统一版本收敛、依赖冲突定位手段，以及灰度期多版本共存时的标签路由隔离治理。",
+            "follow": "灰度期新旧服务共存时，如何保证同一用户的连续请求始终落在同一版本，避免会话状态与本地缓存数据在版本间来回抖动，以及灰度回滚时状态该如何收敛？",
+            "answer": "灰度升级期多版本共存要通过 BOM 与 `dependencyManagement` 统一收敛，父 POM 只声明 `spring-cloud-dependencies` 与 `spring-cloud-alibaba-dependencies` 的版本，子模块禁止写死版本。\n运行期共存靠注册元数据与路由隔离：给实例打 `version` 元数据，网关与 `LoadBalancer` 按标签把流量导向新旧版本，配合 Nacos 权重与灰度规则逐步切流。治理上建立依赖基线白名单、CI 卡口检测版本越界、用 `jdeps` 与启动检查排除同名类冲突，并在升级前后对比自动配置报告，避免半升级态引发 `NoSuchMethodError`。"
+          },
+          {
+            "id": "m9q10",
+            "q": "生产环境如何排查并治理 starter 自动配置冲突与排包问题？",
+            "core": "考察 starter 排包、自动配置冲突定位与 spring.autoconfigure.exclude 的集中治理方式。",
+            "follow": "",
+            "answer": "排包先由 `mvn dependency:tree` 找出多余传递依赖，再用 `exclusions` 剔除冲突 starter，或在启动参数用 `spring.autoconfigure.exclude` 精确关闭自动配置类。定位冲突可开启 `--debug` 查看 `CONDITIONS EVALUATION REPORT`。\n生产治理应把 `spring.autoconfigure.exclude` 收敛到集中配置而非散落各处，配合 `spring.main.allow-bean-definition-overriding=false` 暴露重复 Bean，避免静默覆盖。"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "n": 10,
+    "title": "生产排障与场景设计",
+    "groups": [
+      {
+        "id": "mod10-fault",
+        "title": "A. 典型故障诊断（中级）",
+        "qs": [
+          {
+            "id": "m10q1",
+            "q": "服务注册不上或频繁掉线，应按怎样的完整路径排查？",
+            "core": "考察服务注册不上与频繁掉线的分层排查路径，以及 Nacos 心跳与实例剔除机制的理解。",
+            "follow": "",
+            "answer": "先确认基础连通：核对 `spring.cloud.nacos.discovery.server-addr` 与端口，Nacos 2.x 还需放通 9848 与 9849 的 gRPC 端口，检查 namespace、group 与集群名是否与服务端一致，再看 `spring.application.name` 与鉴权 `username`、`password`。\n频繁掉线多为心跳与健康检查问题：临时实例依赖客户端五秒心跳与服务端十五秒不健康、三十秒剔除阈值，需排查 GC 停顿、线程池打满、CPU 饱和导致心跳线程饿死，以及 ephemeral 与 persistent 实例类型配错。还要核对客户端与服务端版本兼容、UDP 推送端口、时间偏差与服务端集群 Raft 是否稳定。"
+          },
+          {
+            "id": "m10q2",
+            "q": "Feign 超时引发级联雪崩时如何快速定位并止血？",
+            "core": "考察 Feign 超时引发级联雪崩的链路定位手段、止血优先级以及超时与熔断配置的落地。",
+            "follow": "",
+            "answer": "定位先在网关与调用方看 RT、错误率与线程池指标，用 SkyWalking 或 Micrometer Tracing 的 traceId 串联整条链路，确认是哪一跳变慢；再用 Arthas 的 `trace` 与 `stack`、或 `jstack` 看 Feign 调用线程是否大量阻塞在 `LoadBalancerClient` 与连接池获取上。\n止血顺序是先扩容或重启堆积节点，再把 `spring.cloud.openfeign.client.config.default.connectTimeout` 与 `readTimeout` 收紧并配置合理重试，避免线程被长期占用；开启 Resilience4j 或 Sentinel 的熔断、`fallback` 与舱壁隔离，对非核心接口直接降级返回兜底。"
+          },
+          {
+            "id": "m10q3",
+            "q": "Spring Cloud Gateway 返回 503 的常见根因与排查路径是什么？",
+            "core": "考察 Gateway 返回 503 时负载均衡选实例、注册发现与路由配置的完整排查思路。",
+            "follow": "若网关只是偶发 503 且很快自愈，你会如何抓取现场证据，区分是实例健康检查抖动、负载均衡缓存过期还是上游瞬时过载，又该如何加固避免复发？",
+            "answer": "Gateway 返回 503 通常是 `lb://service` 路由在负载均衡阶段找不到可用实例，先看 Nacos 控制台该服务是否注册、实例是否健康、`namespace` 与 `group` 是否与网关一致，再查 `spring.cloud.gateway.discovery.locator.enabled` 与路由谓词是否拼错服务名。\n若实例存在仍 503，排查是否所有实例权重为零或被摘除、是否开启了 `Retry` 过滤器反复重试放大故障、是否下游直接返回 503 透传，以及 WebFlux 线程池与连接池耗尽。用 `/actuator/gateway/routes` 核对生效路由，开启 `reactor.netty` 与负载均衡 DEBUG 日志看选实例过程。"
+          },
+          {
+            "id": "m10q4",
+            "q": "配置中心修改配置后不生效，应从哪些环节排查？",
+            "core": "考察配置不生效时 Config Data 加载链路、Nacos dataId 拼接规则与刷新机制的排查要点。",
+            "follow": "",
+            "answer": "先确认加载链路：Boot 2.4 之后若未启用 `spring-cloud-starter-bootstrap` 或 `spring.config.import`，`bootstrap.yml` 里的远程配置根本不会加载。核对 dataId 是否由 `spring.application.name`、profile 与 `file-extension` 拼出，避免读了旧快照。\n再看刷新机制：`@Value` 注入需类上标注 `@RefreshScope`，`@ConfigurationProperties` 才能随 `Environment` 变更自动刷新，Spring Cloud Config 需调用 `/actuator/refresh`，Nacos 依赖 `NacosContextRefresher` 监听。"
+          }
+        ]
+      },
+      {
+        "id": "mod10-design",
+        "title": "B. 全链路与多环境设计（高级）",
+        "qs": [
+          {
+            "id": "m10q5",
+            "q": "全链路灰度在网关、Feign、MQ、线程池与数据库如何传递流量染色？",
+            "core": "考察流量染色在网关、Feign、MQ、线程池与数据库之间的透传设计，以及异步断点的防护。",
+            "follow": "",
+            "answer": "流量染色以统一标签贯穿全链路：网关按规则给请求写入灰度标识，用 `GlobalFilter` 放进 Header，OpenFeign 通过 `RequestInterceptor` 透传，消息场景把标签写入消息 Header 或属性，线程池异步处用阿里 TTL 的 `TransmittableThreadLocal` 保证不丢，数据库可用影子表或影子字段承接灰度数据。\n路由层在 Nacos 给实例打 `version` 与灰度元数据，网关与自定义 `ServiceInstanceListSupplier` 按标签选实例，配合 Sentinel 对灰度流单独限流。设计要点是标签只在入口生成、下游只透传不改写，线程池与 MQ 是最易断点需专项验证；灰度与生产共用存储时必须做数据隔离与可回滚，发布按实例权重逐步放量并保留一键摘流。"
+          },
+          {
+            "id": "m10q6",
+            "q": "多环境隔离中 namespace、group、profile 与标签路由如何配合防误用？",
+            "core": "考察 namespace、group、profile 与标签路由的多环境隔离设计及配置误用防护。",
+            "follow": "当开发与生产共用一套 Nacos 集群时，如何用最小改造避免测试配置误写到生产，同时保留紧急情况下跨环境改配置的应急通道？",
+            "answer": "隔离分四层：用 Nacos `namespace` 做环境硬隔离（开发、测试、生产各一个），`group` 区分应用或业务域，`spring.profiles.active` 决定配置 dataId 后缀，再叠加实例元数据与标签路由做灰度分流。\n防误用靠约束而非约定：CI 注入环境标识并禁止跨 `namespace` 拉取，`spring.config.import` 使用带 profile 占位的可选导入，生产账号只授权本 namespace 的读写，配置中心开启变更审计与二次确认。还要禁止代码里硬编码地址与账号，用启动自检校验当前 namespace 与预期一致，配合标签路由兜底，防止测试流量或错配漏进生产。"
+          },
+          {
+            "id": "m10q7",
+            "q": "注册中心与配置中心如何做高可用部署与容灾降级？",
+            "core": "考察注册与配置中心的高可用集群部署、一致性协议，以及本地缓存与服务降级的容灾设计。",
+            "follow": "",
+            "answer": "注册中心与配置中心都要集群化部署，Nacos 建议至少三个节点并前置负载均衡或 VIP，配置数据用外置 MySQL 主备加 JRaft 保证一致，临时服务实例走 Distro 协议做去中心化同步，节点跨可用区打散避免单机房故障。客户端要配置多地址与合理超时重试，并开启健康检查自动摘除异常节点。\n容灾重点是注册中心挂了业务仍能跑：Nacos 客户端有本地服务缓存与配置快照，配合 `failover` 目录可在断连时用本地列表继续调用，配置侧用本地缓存兜底避免启动失败。还需定义 RTO 与 RPO、定期演练集群脑裂与数据库切换、监控 Leader 选举与长轮询堆积，并在网关侧准备静态路由降级预案，把注册中心故障的影响面压到最小。"
+          },
+          {
+            "id": "m10q8",
+            "q": "微服务容量规划、限流降级预案与故障演练应如何落地？",
+            "core": "考察容量模型与水位测算、限流降级预案的分级设计，以及混沌故障注入演练的落地方法。",
+            "follow": "",
+            "answer": "容量规划先靠全链路压测摸清单机水位，用 JMeter 或 wrk 得到 QPS、P99 延迟与线程数拐点，按峰值乘以冗余系数定实例数，并把 CPU、堆内存、连接池与 GC 停顿设成水位线。据此配置 Sentinel 的 QPS 限流、线程数隔离、冷启动与匀速排队，以及熔断慢调用比例与异常比例阈值，避免阈值凭经验拍脑袋。\n降级预案要分级列出可关闭的非核心功能、缓存兜底与静态页，明确触发条件、执行人与回滚步骤，并通过 ChaosBlade 等工具做故障注入演练，验证限流生效、熔断恢复与线程池隔离。上线前做预案评审，日常用 Prometheus 与 Grafana 盯水位和拒绝量，定期复盘演练结果，把限流阈值与容量模型随流量变化动态校准。"
+          }
+        ]
+      },
+      {
+        "id": "mod10-sum",
+        "title": "C. 综合架构设计与追问（进阶）",
+        "qs": [
+          {
+            "id": "m10q9",
+            "q": "从零设计一套 Spring Cloud 微服务体系，组件如何选型与取舍？",
+            "core": "考察从零搭建微服务体系时的组件选型、版本矩阵锁定，以及一致性与可用性的取舍理由。",
+            "follow": "",
+            "answer": "选型以当前维护态为准：注册与配置用 Nacos，网关用 `Spring Cloud Gateway`，同步调用用 `OpenFeign` 加 `Spring Cloud LoadBalancer`，容错用 Sentinel 或 Resilience4j，链路追踪用 Micrometer Tracing 配 SkyWalking，消息用 RocketMQ。\n取舍理由是避开已退役的 Eureka、Ribbon、Hystrix 与 Zuul，Java 17 与 Jakarta 命名空间跟随官方主线；注册中心要在 AP 与 CP 间按场景选，配置与注册共用一个 Nacos 可降运维成本但需评估爆炸半径。"
+          },
+          {
+            "id": "m10q10",
+            "q": "线上大面积接口超时，完整的排查思路、工具与复盘改进是什么？",
+            "core": "考察线上大面积接口超时的范围判定、排查工具链、止血先后顺序与复盘改进机制的设计。",
+            "follow": "如果超时只在每天固定时段出现且能自行恢复，你会优先怀疑哪些周期性因素，又该补充哪些监控指标与告警规则来提前发现，并设计自动止血与降级联动？",
+            "answer": "先确认现象与范围：看监控大盘的错误率、P99 延迟、QPS 与线程池水位，判断是单接口、单服务还是全站，并对照变更时间线（发布、配置推送、扩容、依赖升级）。若多服务同时异常，优先查公共依赖：注册中心、配置中心、网关、数据库、缓存、DNS 与网络；再用 traceId 串联 SkyWalking 链路定位第一处耗时突增的跳。\n工具上组合使用 Arthas 的 `trace` 与 `dashboard`、`jstack` 查线程阻塞与死锁、`jmap` 与 GC 日志查停顿、慢 SQL 日志、`tcpdump` 查网络重传，以及 Nacos 控制台确认实例健康。止血按回滚、扩容、降级、限流、切流顺序执行，优先恢复而非查根因。"
+          }
+        ]
+      }
+    ]
+  }
+]

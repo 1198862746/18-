@@ -1,0 +1,190 @@
+[
+  {
+    "n": 7,
+    "title": "链路追踪与可观测性",
+    "groups": [
+      {
+        "id": "mod7-basic",
+        "title": "A. Trace、Span 与采样（中级）",
+        "qs": [
+          {
+            "id": "m7q1",
+            "q": "Trace、Span、Annotation 各指什么，traceId 和 spanId 如何生成？",
+            "answer": "一次分布式调用建模为一条 Trace，由多个 Span 组成有向无环图。入口根 Span 生成全局唯一的 128 位十六进制 `traceId`，每个 Span 分配独立 `spanId`，再用 `parentId` 指向父节点形成层级。Span 记录操作名、耗时、时间戳和标签。\n上下文由 Brave 或 OpenTelemetry 的 `TraceContext` 在入口创建，Sleuth 通过 `Tracer` 派生子 Span，`traceId` 全程不变而 `spanId` 逐跳更新，并随 W3C 头透传。Spring Boot 3 换成 Micrometer 的 `Span` 接口。排障时按 traceId 聚合整条链，按 spanId 定位单跳耗时。",
+            "core": "考察 Trace、Span、Annotation 的数据模型，以及 traceId 根生成与 spanId 父子串联、上下文载体和版本差异。",
+            "follow": ""
+          },
+          {
+            "id": "m7q2",
+            "q": "链路采样有哪些策略，恒定、概率、速率限制与请求头透传各如何取舍？",
+            "answer": "采样决定一条链路是否完整上报，常见四类：恒定采样由 `Sampler.ALWAYS_SAMPLE` 或 `NEVER_SAMPLE` 一刀切；概率采样按 `spring.sleuth.sampler.probability` 默认 0.1 抽十分之一；速率限制用每秒上报条数上限压制突发流量；请求头透传则由上游 sampled 标志驱动，下游用父级继承决策。\nBrave 里由计数与限速两类 Sampler 实现，Boot 3 的 Micrometer 桥接用 `Sampler` 把采样概率收敛到 `management.tracing.sampling.probability`，并用父级继承保证链路一致。这些都是入口处的头部采样，错误链路可能漏采；生产常叠加尾部采样。`tail_sampling` 按延迟和错误码保留错误链路。",
+            "core": "考察恒定、概率、速率限制与父级透传采样的实现与配置，以及头部采样和尾部采样的取舍对链路完整性的影响。",
+            "follow": "若上游已采样而下游单独配了更低的采样概率，链路会出现什么现象？生产上如何用父级继承保证链路完整，同时叠加尾部采样对错误链路兜底？"
+          },
+          {
+            "id": "m7q3",
+            "q": "W3C TraceContext 与 B3 如何把 trace 上下文透传到 HTTP 和消息头？",
+            "answer": "传播本质是把 `TraceContext` 序列化进请求头。W3C TraceContext 用单个 `traceparent` 头承载版本、traceId、父 spanId 和采样标志，另用 tracestate 携带厂商扩展；B3 则分单头与多头两种形态，多头含 `X-B3-TraceId`、`X-B3-SpanId` 与是否采样的标记。\nSleuth 默认 B3，可用 `spring.sleuth.propagation.type` 切成 W3C 或 `B3,W3C` 双读兼容，Boot 3 则交给 OpenTelemetry 的 `TextMapPropagator` 统一处理。HTTP 侧由 `RestTemplate` 拦截器自动注入。消息侧靠 Kafka 与 Rabbit 的 header 透传。",
+            "core": "考察 W3C TraceContext 与 B3 的报文格式、传播配置，以及 HTTP 拦截器和消息头在跨服务透传中的落地。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod7-stack",
+        "title": "B. 技术栈与迁移（高级）",
+        "qs": [
+          {
+            "id": "m7q4",
+            "q": "Sleuth 与 Zipkin 各自承担什么职责，span 有哪些上报方式又落到哪些存储？",
+            "answer": "Sleuth 只负责埋点与上下文传播，它通过 Brave 的 `Tracer` 生成 Span，再由 `AsyncReporter` 批量把 span 发给名为 Reporter 的通道；Zipkin 服务端分 collector、storage、query 与 UI 四层，collector 校验并写入 `StorageComponent`。两者解耦，业务应用不直接连数据库。\n上报方式由 `spring.zipkin.sender.type` 决定：web 走 HTTP 打到默认 9411 端口，Kafka 与 Rabbit 经消息队列削峰，适合高吞吐。存储可选内存、MySQL、Cassandra 或 Elasticsearch，生产多用 ES 并配 `zipkin-dependencies` 离线生成依赖图。",
+            "core": "考察 Sleuth 埋点与 Zipkin 收集、存储、查询的分工，HTTP 与 Kafka 上报通道以及 Elasticsearch 等存储选型。",
+            "follow": ""
+          },
+          {
+            "id": "m7q5",
+            "q": "SkyWalking 探针如何做到无侵入埋点，它和 Zipkin 在架构与能力上有何差别？",
+            "answer": "SkyWalking 的 Java Agent 在 `premain` 阶段借 `Instrumentation` 与 Byte Buddy 做字节码增强，对 Spring MVC、Dubbo、HttpClient、JDBC 等框架自动插桩，生成 EntrySpan、ExitSpan 与 LocalSpan，再经 gRPC 上报到 OAP。`agent.config` 指定服务名即可接入。\n对比 Zipkin 与 Sleuth，后者必须引入 starter、由应用显式埋点并管理传播，而 SkyWalking 天然无侵入且自带服务拓扑、实例与端点指标、慢 SQL、JVM 监控以及告警引擎，存储支持 ES、H2 与 MySQL。代价是 Agent 升级与字节码兼容风险、启动期插桩开销，深度定制不如代码埋点灵活。",
+            "core": "考察 Java Agent 字节码增强原理、无侵入优势，以及 SkyWalking 在拓扑、指标、告警上与 Zipkin 的能力对比。",
+            "follow": "容器化环境里 Java Agent 的字节码增强对启动耗时和常驻 CPU 有多大影响？如何只开启必要插件、用采样和异步上报压低开销并量化评估收益？"
+          },
+          {
+            "id": "m7q6",
+            "q": "Sleuth 停更后如何迁移到 Micrometer Tracing 与 OTel 桥接？",
+            "answer": "Sleuth 最后维护在 3.1，Spring Boot 3 与 Spring Cloud 2022 起官方把追踪能力独立为 Micrometer Tracing，Sleuth 停止演进。API 从 Sleuth 的 `Tracer`、`Span` 换成 `io.micrometer.tracing` 包下同名接口。\n配置前缀整体迁移：采样概率由 `spring.sleuth.sampler.probability` 收敛到 `management.tracing.sampling.probability`，Zipkin 地址与 OTLP 上报端点也改到 management 命名空间下。传播默认走 W3C，可用传播类型配置兼容老 B3。日志 MDC 仍自动注入 traceId。",
+            "core": "考察 Sleuth 停更背景、Micrometer Tracing 与 OpenTelemetry 桥接、包名与配置的迁移映射以及自定义埋点改造。",
+            "follow": ""
+          },
+          {
+            "id": "m7q7",
+            "q": "日志里如何注入 traceId，又怎样把日志与调用链关联起来定位一次请求？",
+            "answer": "Sleuth 借 Brave 的 `CurrentTraceContext` 与 `Slf4JScopeDecorator` 在进入 Span 作用域时把 `traceId`、`spanId` 写进 MDC，退出时清理，logback 用 `%X{traceId}` 或默认的 app、traceId、spanId 三元组格式打印到每行日志。\n排查时先用请求特征或网关日志拿到 traceId，在 ELK 里一次聚合出该请求跨服务的全部日志，看异常栈与业务参数；再进 Zipkin 或 SkyWalking 按同一 traceId 打开链路，对照 span 耗时与 error 标签区分是网络、排队还是慢 SQL。异步线程不继承 MDC，需用 `TaskDecorator` 复制上下文。订单号等键与 traceId 一并打印便于反查。",
+            "core": "考察 MDC 注入 traceId 的实现、日志格式配置、异步场景继承问题与日志链路联动排障的完整思路。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod7-debug",
+        "title": "C. 上下文丢失与排障（进阶）",
+        "qs": [
+          {
+            "id": "m7q8",
+            "q": "异步线程、线程池、定时任务和 MQ 消费为何丢失 traceId，分别怎么修复？",
+            "answer": "根因是 trace 上下文存在 `ThreadLocal` 里，`@Async`、线程池与 MQ 监听线程默认读不到，于是子任务另起 trace 或彻底丢失。修复思路是提交任务时携带当前上下文快照：Sleuth 用 `LazyTraceExecutor`，Boot 3 用 `ContextPropagatingTaskDecorator` 包装执行器。\n定时任务没有上游入口，通常用 `Tracer` 显式开一条新 trace 并配合分布式锁避免重复执行。MQ 场景要双向透传：生产端把 `traceparent` 写进消息头，Kafka 需放行自定义头，消费端用 `RecordInterceptor` 或 Rabbit 的消息后处理器提取并恢复上下文；否则链路在 broker 处断裂。改造后务必用日志里的 traceId 验证父子关系。",
+            "core": "考察 ThreadLocal 上下文丢失根因，TaskDecorator、包装 Executor 与消息头透传在异步和 MQ 场景的修复方案。",
+            "follow": "业务同时用 WebFlux 与传统线程池时，Reactor 上下文和 trace 上下文如何对齐？改造后怎样验证子线程确实继承父 span，而不是另起一条新链？"
+          },
+          {
+            "id": "m7q9",
+            "q": "怎样借调用链定位慢调用，采样率与上报数据量又该如何调优？",
+            "answer": "定位慢调用先在 Zipkin 或 SkyWalking 按 duration 倒序找最耗时 span，看客户端与服务端四个时间点拆出网络、排队、服务处理和 DB 耗时，再下钻 `db.statement`、`error` 与状态码标签。可借 `BaggageField` 带上用户或租户维度过滤干扰流量，区分是个别请求偶发还是某实例整体劣化。\n调优分三层：入口降低采样概率，给高 QPS 服务再叠加速率上限；对错误和慢请求用 OTel Collector 的 `tail_sampling` 按延迟与状态码做后置保留，弥补头部采样漏采。上报用 `BatchSpanProcessor` 批量发送并调队列与批大小；存储侧按天滚动索引、配 ES 的 ILM 冷热分层与保留期。同时限制标签和 baggage 数量，避免单条 span 过大。",
+            "core": "考察按耗时下钻 span 定位瓶颈的方法，概率、速率与尾部采样调优以及批量上报和存储索引优化。",
+            "follow": ""
+          },
+          {
+            "id": "m7q10",
+            "q": "生产上链路数据膨胀与存储成本如何控制，采样策略怎样和告警联动？",
+            "answer": "膨胀来自全量采样叠加大流量长链路，以及把大报文塞进标签或滥用 baggage。治理先做分层采样：入口按 `management.tracing.sampling.probability` 降到个位数百分比，用 `ParentBasedSampler` 保证整链一致，对错误和超阈值慢请求强制全采；再限制 baggage 字段数与长度。\n存储降本靠 ES 按天或服务建索引、ILM 热温冷加删除阶段只留七到十四天，明细转对象存储归档，并用 `zipkin-dependencies` 离线聚合依赖图减轻查询压力；上报链路经 Kafka 削峰配合批量处理器。告警联动把追踪派生出 P99 延迟、错误率与慢调用数导入 Prometheus，规则命中时把 traceId 写进告警消息直达链路。同时用抑制规则避免采样抖动引发误报。",
+            "core": "考察链路数据膨胀治理、分层采样、ES 生命周期与对象存储降本，以及派生指标驱动告警的工程方案。",
+            "follow": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "n": 8,
+    "title": "Stream 与 Seata",
+    "groups": [
+      {
+        "id": "mod8-stream",
+        "title": "A. Spring Cloud Stream（中级）",
+        "qs": [
+          {
+            "id": "m8q1",
+            "q": "Spring Cloud Stream 的 Binder 与 Binding 如何解耦消息中间件？",
+            "answer": "Spring Cloud Stream 用 `Binder` 把应用和中间件隔离：应用只面向 `MessageChannel` 与统一的消息头模型，由 `KafkaMessageChannelBinder` 或 Rabbit 版本负责真正收发。`Binding` 描述通道绑定到哪个 destination 和消费组，配置放在 bindings 命名空间下。\n代价是中间件高级能力必须下沉到 binder 专属配置，例如 Kafka 事务、死信与分区参数都在 `spring.cloud.stream.kafka.binder` 下，抽象层不保证跨中间件等价，选型时要评估这些特性是否被屏蔽。`BindingService` 管理绑定生命周期。3.x 起 `@EnableBinding` 与 Source、Sink 接口被函数式取代。",
+            "core": "考察 Binder、Binding、MessageChannel 的分层抽象，切换中间件的配置代价与 Binder 专属属性的边界。",
+            "follow": ""
+          },
+          {
+            "id": "m8q2",
+            "q": "消费组与分区分别保证什么语义，各自适合哪些业务场景？",
+            "answer": "消费组由 `spring.cloud.stream.bindings` 下的 `group` 定义，同组多实例竞争分区，一条消息只被组内一个实例消费，Kafka 靠 consumer group rebalance、Rabbit 靠共享队列实现；不同组各自拿到全量副本，天然形成发布订阅广播。不配 group 会生成匿名临时订阅，重启即丢且易漏消息。生产必须显式命名。\n分区用 `partitionKeyExpression` 或 `partitionKeyExtractorName` 提取业务键，配合 `partitionCount` 让同键落到同一分区，从而保证局部有序并降低并发写冲突。适合订单按 orderId 保序、库存按 SKU 串行扣减。",
+            "core": "考察消费组组内单次消费与组间广播语义、分区保序原理、扩容 rebalance 与热点键倾斜问题。",
+            "follow": ""
+          },
+          {
+            "id": "m8q3",
+            "q": "函数式模型的 Supplier、Function、Consumer 相比旧注解式有哪些变化？",
+            "answer": "3.x 起推荐函数式模型：`Supplier`、`Function`、`Consumer` 声明成 bean，框架按 `spring.cloud.stream.function.definition` 自动推导绑定，命名是函数名加 in 或 out 加序号，多函数用分号串联。\n函数式天然支持 `Function` 组合、`Flux` 响应式流与多输入输出，动态发送改用 `StreamBridge` 取代过去注入输出通道的做法，绑定名也可显式覆盖。测试侧用 `FunctionCatalog` 直接调用 bean、配合测试 binder 收发消息，无需拉起真实 Kafka；响应式场景要注意背压与手动确认的配合。以免函数式链路丢失提交语义或重复消费。",
+            "core": "考察函数式定义与绑定命名规则、注解式废弃演进、StreamBridge 与 Flux 响应式支持及迁移要点。",
+            "follow": "现网仍用注解式的老服务如何在不停机前提下平滑切到函数式定义？绑定名与 destination 怎样保持一致，灰度期间新旧消费者如何共存而不重复消费？"
+          },
+          {
+            "id": "m8q4",
+            "q": "死信队列和重试策略如何配置，消费端幂等为什么不能只靠 DLQ？",
+            "answer": "消费抛异常后 binder 按 `maxAttempts`（默认三次）、`backOffInitialInterval` 与 `backOffMultiplier` 做指数退避重试，仍失败才投递死信队列：Kafka 开 `enableDlq` 生成带组名和主题后缀的 DLQ 主题，Rabbit 用 `autoBindDlq` 绑定死信交换器。批量消费下重试语义与单条不同，要单独评估确认模式。\nDLQ 只兜底不解决重复：网络重试或手动补偿都可能让同一消息再来一次，幂等必须在业务层做。常用唯一键去重表或 Redis `SETNX`，配合数据库唯一索引与乐观锁 version 字段；`Consumer` 在业务成功后才提交偏移量，避免先确认后处理造成丢失。DLQ 要配监控与人工补偿入口，保留原始消息头与 `traceId`，便于按链路回溯失败上下文。",
+            "core": "考察重试与退避参数、DLQ 投递条件、手动确认语义，以及唯一键去重表与乐观锁实现幂等。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod8-seata",
+        "title": "B. Seata 分布式事务（高级）",
+        "qs": [
+          {
+            "id": "m8q5",
+            "q": "Seata 的 TC、TM、RM 各司何职，AT 模式两阶段具体怎么走？",
+            "answer": "Seata 三角色：TC 是独立 `seata-server`，维护全局事务与分支状态；TM 嵌在业务入口，用 `@GlobalTransactional` 开启、提交或回滚全局事务；RM 在各服务代理 `DataSourceProxy`，注册分支并上报。AT 一阶段由 RM 拦截业务 SQL，解析前后镜像写入 `undo_log`。与业务 SQL 同事务提交后立即释放本地锁并申请全局锁。\n二阶段由 TC 异步下发：全局提交时各分支仅异步删除 `undo_log`，几乎无开销；全局回滚时按前镜像生成反向 SQL 补偿，并用后镜像做脏写校验。`xid` 经 `RootContext` 在 RPC 与 HTTP 调用中透传，`seata.tx-service-group` 映射到 TC 集群。相比 XA，AT 一阶段就提交、不长期持数据库锁。",
+            "core": "考察 TC、TM、RM 职责划分、AT 一阶段 undo_log 与本地事务、二阶段异步提交或回滚补偿全流程。",
+            "follow": ""
+          },
+          {
+            "id": "m8q6",
+            "q": "AT 模式的 undo_log 与全局锁怎样工作，脏写和脏读问题如何解决？",
+            "answer": "`undo_log` 表含 xid、branch_id、`rollback_info`（前后镜像序列化）、log_status 等字段，由 RM 的 `UndoLogManager` 一阶段写入、二阶段删除或用于反向补偿。全局锁由 TC 在 `lock_table` 中以资源标识加主键作 row_key 维护：AT 一阶段提交前必须拿到全局锁。\nAT 默认本地读未提交，另一个事务可能读到中间态即脏读；要求读已提交时可用 `SELECT FOR UPDATE` 让代理走全局锁等待，或加 `@GlobalLock` 校验，代价是吞吐下降。生产要给 `undo_log` 建唯一索引并定期清理历史、避免长事务长期持全局锁、把热点行更新拆队，并关注 `LockConflict` 与全局锁超时。二阶段回滚还要校验后镜像，数据被改过需转人工。",
+            "core": "考察 undo_log 结构、全局锁防脏写机制、读未提交导致的脏读与 SELECT FOR UPDATE 及全局锁方案。",
+            "follow": "高并发下同一行频繁抛 LockConflict 该调哪些参数？改用 SELECT FOR UPDATE 后吞吐明显下降，还有哪些替代隔离思路能兼顾正确性与吞吐？"
+          },
+          {
+            "id": "m8q7",
+            "q": "TCC 的 Try、Confirm、Cancel 是什么，空回滚、悬挂与幂等怎么处理？",
+            "answer": "TCC 由业务实现三段：`Try` 预留资源（如冻结库存）、`Confirm` 真正扣减且必须幂等、`Cancel` 释放预留。Seata 用 `@TwoPhaseBusinessAction` 声明 name、commitMethod、rollbackMethod，参数经 `BusinessActionContext` 在二阶段回传。\n三大坑需显式防：空回滚是 Try 因超时未执行却收到 Cancel，要靠独立事务记录表判断并插入已回滚标记；悬挂是 Cancel 先到、迟到的 Try 必须查到标记后直接返回，不再预留；幂等是 Confirm 与 Cancel 可能被 TC 重试，用 xid 加 branchId 唯一键或状态机去重。工程上可为 `TccAction` 接口建状态表。该表记录三态并配 TC 重试上限。",
+            "core": "考察 TCC 三方法语义与 BusinessActionContext，空回滚、悬挂、幂等的成因和事务记录表解法。",
+            "follow": ""
+          },
+          {
+            "id": "m8q8",
+            "q": "SAGA 与 XA 各自原理是什么，分别适合什么样的业务场景？",
+            "answer": "SAGA 把长事务拆成一串本地事务，每个正向操作配一个补偿操作，失败时逆序调用补偿回滚；Seata SAGA 用 `StateMachineEngine` 加 JSON 状态图编排，支持异步、可重试与子流程，适合跨多服务、耗时久、无法长期持锁的场景，如旅游订票与供应链流转。它只有最终一致、缺乏隔离性，补偿必须幂等且要处理补偿本身失败。\nXA 基于数据库的 `XAResource` 两阶段：prepare 阶段各分支预提交并一直持锁，TM 统一 commit 或 rollback，强一致但全程锁资源、吞吐低，还依赖数据库 XA 支持，Seata XA 由 `DataSourceProxyXA` 代理。选型上短事务且要强一致用 XA 或 AT，核心资金高并发用 TCC 控粒度。长流程跨异构系统用 SAGA。",
+            "core": "考察 SAGA 状态机与补偿、XA 两阶段持锁的强一致代价，以及按事务时长和一致性要求的选型。",
+            "follow": ""
+          },
+          {
+            "id": "m8q9",
+            "q": "TC 如何做高可用，事务分组怎么配，跨服务事务异常又如何排查？",
+            "answer": "TC 高可用靠三件事：多个 `seata-server` 组成集群，用 `service.vgroupMapping` 把事务分组映射到集群名，借 Nacos 或 Redis 等注册中心做服务发现，再以共享库存储 `global_table`、分支表与锁表保证多节点状态一致，生产禁用 file 模式。客户端事务分组必须与服务端映射一致。\n跨服务异常排查先看 `xid` 有没有透传：入口打印 `RootContext.getXID()`，下游日志比对同一个 xid，缺失通常是 RPC 拦截器或网关未透传。再查 TC 里全局事务状态、分支是否注册齐全、`undo_log` 是否残留未清。常见故障有抢锁 `LockConflict`、入口漏加 `@GlobalTransactional` 导致下游已提交。",
+            "core": "考察 TC 集群的事务分组、注册中心与共享存储，xid 透传与全局表排障及常见超时锁冲突。",
+            "follow": ""
+          }
+        ]
+      },
+      {
+        "id": "mod8-choice",
+        "title": "C. 分布式事务选型（进阶）",
+        "qs": [
+          {
+            "id": "m8q10",
+            "q": "本地消息表、事务消息、Seata 各模式与 SAGA 之间如何权衡并最终一致？",
+            "answer": "选型看一致性、性能、侵入与运维四维度：本地消息表把业务和消息落同一库事务，后台轮询投递，简单可靠但耦合库表且有延迟；RocketMQ 事务消息由 `TransactionMQProducer` 发半消息、执行本地事务再由 broker 回查，吞吐高但绑定中间件。Seata AT 零侵入、一阶段即释放锁，适合短事务；TCC 侵入大却无全局锁，适合资金与高并发。SAGA 适合长流程和异构系统。\n最终一致不是放任不一致，而要有配套设计：全链路幂等靠唯一键或状态机，失败可重试加指数退避，定时对账任务扫描悬挂与不一致并触发补偿，消息与事务都要带 `traceId`、`xid` 和 `messageId` 便于串联排查，监控覆盖积压、重试次数与 DLQ 量。还要在业务上划清允许短暂不一致的边界、设置人工兜底入口，并明确补偿失败后的升级路径，避免静默丢数据。",
+            "core": "考察本地消息表、事务消息、AT、TCC、SAGA 的一致性、侵入与运维权衡及最终一致性配套设计。",
+            "follow": "资金扣减若接受最终一致，TCC 的防悬挂与空回滚记录表该怎么设计？对账发现不一致后应自动补偿还是转人工，这条判断边界依据什么来定？"
+          }
+        ]
+      }
+    ]
+  }
+]
