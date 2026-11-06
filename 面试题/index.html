@@ -28,6 +28,17 @@
                   border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer; }
   .qacts button:hover { background:#dbe6ff; }
   .q.is-playing { border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.22); background:#f0f6ff; }
+  /* ===== 分段文字高亮：读题干亮题干、读答案亮整段答案 ===== */
+  .q[data-reading="q"] .qtitle,
+  .q[data-reading="a"] .qbody p.li { border-radius:6px; }
+  .q[data-reading="q"] .qtitle {
+    color:#1e3a8a; background:#e3ebff; box-shadow:0 0 0 4px #e3ebff; }
+  .q[data-reading="a"] .qbody p.li {
+    color:#1e3a8a; background:#fff2cc; box-shadow:0 0 0 4px #fff2cc; font-weight:600; }
+  .q[data-reading="q"] .qtitle code     { background:#c9d9ff; }
+  .q[data-reading="a"] .qbody p.li code { background:#f5dfa0; }
+  .q[data-reading] .qtitle b,
+  .q[data-reading] .qbody p.li b { color:inherit; }
   .topbar .hidden { display:none; }
   .qtitle { font-weight:600; margin-bottom:4px; }
   .qbody .li { margin:4px 0 4px 4px; }
@@ -101,6 +112,7 @@
     <option value="a">只听答案</option></select>
   <span id="status"></span>
   <label class="lbl" title="播放时自动滚动定位到当前题"><input type="checkbox" id="followPlay" checked>跟随朗读</label>
+  <label class="lbl" title="朗读时高亮当前题干或答案文字"><input type="checkbox" id="textHighlight" checked>文字高亮</label>
   <button type="button" id="backToCurrent" class="hidden alt" title="回到正在朗读的题目">↩ 回到当前题</button>
 </div>
 <div class="page-layout">
@@ -2383,6 +2395,7 @@
 let voices=[], preferredVoice='', playbackId=0, queue=[], qi=0;
 const speechEngine=window.speechSynthesis;
 let followPlay=true, followPaused=false, currentQid=null, muteUntil=0, suppressFollow=false;
+let textHighlight=true;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
 const preferenceKey='interview-speech-preferences';
 let mode='offline', ttsVoice='xiaoxiao', scope='full';
@@ -2399,11 +2412,12 @@ try {
   if(saved && (saved.mode==='offline'||saved.mode==='online')) mode=saved.mode;
   if(saved && (saved.scope==='full'||saved.scope==='q'||saved.scope==='a')) scope=saved.scope;
   if(saved && typeof saved.followPlay==='boolean') followPlay=saved.followPlay;
+  if(saved && typeof saved.textHighlight==='boolean') textHighlight=saved.textHighlight;
 } catch(e) { /* 存储不可用不影响播放。 */ }
 function savePreferences(){
   try { localStorage.setItem(preferenceKey,JSON.stringify({
     voice:preferredVoice, rate:parseFloat(document.getElementById('rate').value),
-    ttsVoice:ttsVoice, scope:scope, mode:mode, followPlay:followPlay })); }
+    ttsVoice:ttsVoice, scope:scope, mode:mode, followPlay:followPlay, textHighlight:textHighlight })); }
   catch(e) { /* 部分浏览器限制本地文件存储。 */ }
 }
 function voiceId(v){ return JSON.stringify([v.voiceURI||v.name,v.lang,v.name]); }
@@ -2481,6 +2495,15 @@ function highlight(id,on){
   const el=document.getElementById(id);
   if(el) el.classList.toggle('is-playing',on);
 }
+function clearReading(){
+  document.querySelectorAll('.q[data-reading]').forEach(function(e){ e.removeAttribute('data-reading'); });
+}
+function setReading(id, part){
+  clearReading();
+  if(!textHighlight) return;
+  const el=document.getElementById(id);
+  if(el) el.setAttribute('data-reading', part==='a'?'a':'q');
+}
 function expand(ids,sc){
   const out=[];
   ids.forEach(function(id){
@@ -2493,6 +2516,7 @@ function cancelPlayback(){
   if(player){ player.pause(); player.onended=null; player.onerror=null; }
   if(speechEngine) speechEngine.cancel();
   clearHighlight();
+  clearReading();
   resetFollow();
 }
 function playSeq(ids,sc,suppress){
@@ -2505,9 +2529,10 @@ function playSeq(ids,sc,suppress){
 }
 function step(id){
   if(id!==playbackId) return;
-  if(qi>=queue.length){ clearHighlight(); resetFollow(); setStatus('播放完成'); return; }
+  if(qi>=queue.length){ clearHighlight(); clearReading(); resetFollow(); setStatus('播放完成'); return; }
   const it=queue[qi], n=ALL_IDS.indexOf(it.id)+1;
   highlight(it.id,true);
+  setReading(it.id, it.part);
   followTo(it.id);
   setStatus('第 '+n+'/'+ALL_IDS.length+' 题 · '+(it.part==='q'?'题目':'答案')+' · '+VOICE_LABEL[ttsVoice]);
   if(mode==='online'){ fallbackSpeak(id,it.id,it.part); return; }
@@ -2641,6 +2666,14 @@ function initFollow(){
   syncFollowUI();
 }
 initFollow();
+/* ===== 文字高亮：按 part 恢复/清除，与跟随朗读互不影响 ===== */
+document.getElementById('textHighlight').addEventListener('change', function(){
+  textHighlight=this.checked; savePreferences();
+  if(!textHighlight){ clearReading(); return; }
+  if(isPlaying()){ var it=queue[qi]; if(it) setReading(it.id, it.part); }
+});
+function initTextHighlight(){ document.getElementById('textHighlight').checked=textHighlight; }
+initTextHighlight();
 </script>
 
 
