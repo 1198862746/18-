@@ -93,7 +93,7 @@
   }
   @media (max-width:600px) { .page-layout { padding:0 8px; } }
   /* ===== 逐字跳动（卡拉 OK 扫光）：只对当前播放 part 懒注入，卸载即还原 ===== */
-  :root { --kx-todo:#8590a3; --kx-read:#1e3a8a; --kx-now:#0b1f5e; }
+  :root { --kx-todo:#9aa5b8; --kx-read:#1e3a8a; --kx-now:#0b1f5e; }
   .q.karaoke-on[data-reading="q"] .qtitle,
   .q.karaoke-on[data-reading="a"] .qbody p.li { color:var(--kx-todo); }
   .q.karaoke-on[data-reading="q"] .qtitle code,
@@ -102,13 +102,14 @@
     display:inline-block; vertical-align:baseline; line-height:inherit;
     color:var(--kx-todo); font-weight:inherit;
     transform:translateY(0) scale(1);
-    transition:transform .10s ease-out, color .09s linear, text-shadow .09s linear;
+    transition:transform .07s ease-out, background-color .05s linear;
   }
   .q.karaoke-on .kx.is-read { color:var(--kx-read); }
   .q.karaoke-on .kx.is-now {
     color:var(--kx-now);
+    background:rgba(59,130,246,.24); border-radius:3px;
     text-shadow:0 0 6px rgba(59,130,246,.9), 0 0 14px rgba(59,130,246,.5);
-    transform:translateY(-2px) scale(1.12);
+    transform:translateY(-3px) scale(1.22);
   }
   @media (prefers-reduced-motion:reduce){
     .q.karaoke-on .kx { transition:none; }
@@ -2424,6 +2425,7 @@ let textHighlight=true;
 let karaokeOn=true;
 let karaokeActive=false, karaokeTargets=[], karaokeSpans=[];
 let karaokeLastK=-1, karaokeNowIdx=-1, karaokeRaf=0, karaokePlayId=-1;
+let karaokeEstimate=null, karaokeFallback=false;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
 const preferenceKey='interview-speech-preferences';
 let mode='offline', ttsVoice='xiaoxiao', scope='full';
@@ -2582,6 +2584,7 @@ function fallbackSpeak(id,qid,part){
   karaokeClear();
   if(!canSpeak()){ setStatus('离线音频不可用，且浏览器不支持在线朗读'); return; }
   const u=makeUtter(partText(qid,part));
+  if(karaokeOn) karaokeInject(qid,part,true);
   u.onend=function(){ if(id===playbackId) advance(id); };
   u.onerror=function(e){
     if(id===playbackId && e.error!=='canceled' && e.error!=='interrupted') advance(id);
@@ -2722,14 +2725,15 @@ function karaokeClear(){
   if(karaokeRaf){ cancelAnimationFrame(karaokeRaf); karaokeRaf=0; }
   karaokeTargets.forEach(function(t){ t.el.innerHTML=t.html; });
   karaokeTargets=[]; karaokeSpans=[];
-  karaokeLastK=-1; karaokeNowIdx=-1; karaokeActive=false;
+  karaokeLastK=-1; karaokeNowIdx=-1; karaokeActive=false; karaokeEstimate=null;
   document.querySelectorAll('.q.karaoke-on, .q.kx-reduced').forEach(function(e){
     e.classList.remove('karaoke-on','kx-reduced');
   });
 }
-function karaokeInject(id,part){
+function karaokeInject(id,part,estimate){
   karaokeClear();
-  if(!karaokeOn || mode!=='offline') return;
+  karaokeFallback=!!estimate;
+  if(!karaokeOn || (!estimate && mode!=='offline')) return;
   var roots=karaokeRoots(id,part);
   if(!roots.length) return;
   var q=document.getElementById(id);
@@ -2757,6 +2761,11 @@ function karaokeInject(id,part){
   });
   karaokeActive=karaokeSpans.length>0;
   karaokePlayId=playbackId;
+  if(estimate){
+    var rate=parseFloat(document.getElementById('rate').value)||1;
+    karaokeEstimate={start:Date.now(), dur:Math.max(1, karaokeSpans.length*0.18/rate)};
+    karaokeStart();
+  }
 }
 function karaokeApply(p){
   var total=karaokeSpans.length;
@@ -2776,9 +2785,14 @@ function karaokeApply(p){
 }
 function karaokeFrame(){
   if(!karaokeActive || !karaokeOn || karaokePlayId!==playbackId){ karaokeRaf=0; return; }
-  var d=player.duration;
-  if(isFinite(d) && d>0 && !player.paused){
-    karaokeApply(Math.min(1,Math.max(0,player.currentTime/d)));
+  if(karaokeEstimate){
+    var e=karaokeEstimate;
+    karaokeApply(Math.min(1,Math.max(0,(Date.now()-e.start)/(e.dur*1000))));
+  } else {
+    var d=player.duration;
+    if(isFinite(d) && d>0 && !player.paused){
+      karaokeApply(Math.min(1,Math.max(0,player.currentTime/d)));
+    }
   }
   karaokeRaf=requestAnimationFrame(karaokeFrame);
 }
@@ -2788,10 +2802,13 @@ function karaokeStart(){
   if(karaokeActive && karaokeOn) karaokeRaf=requestAnimationFrame(karaokeFrame);
 }
 function karaokeResume(id,part){
-  if(mode!=='offline' || !isPlaying()) return;
-  karaokeInject(id,part);
+  if(!isPlaying()) return;
+  karaokeInject(id,part,karaokeFallback);
   karaokeStart();
-  if(isFinite(player.duration) && player.duration>0){
+  if(karaokeEstimate){
+    var e=karaokeEstimate;
+    karaokeApply(Math.min(1,Math.max(0,(Date.now()-e.start)/(e.dur*1000))));
+  } else if(isFinite(player.duration) && player.duration>0){
     karaokeApply(Math.min(1,Math.max(0,player.currentTime/player.duration)));
   }
 }
