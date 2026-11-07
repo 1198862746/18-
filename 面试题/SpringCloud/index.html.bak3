@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spring Cloud 全家桶面试题 · 可朗读版（晓晓离线语音）</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         background:#f5f6f8; color:#1f2329; line-height:1.7; }
+  .topbar { position:sticky; top:0; z-index:10; background:#1f2329; color:#fff; padding:10px 14px;
+            display:flex; flex-wrap:wrap; gap:8px; align-items:center; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .topbar button { background:#3b82f6; color:#fff; border:none; border-radius:6px; padding:7px 12px; font-size:14px; cursor:pointer; }
+  .topbar button.alt { background:#10b981; }
+  .topbar button.stop { background:#ef4444; }
+  .topbar select, .topbar input { font-size:14px; }
+  .topbar .lbl { font-size:13px; opacity:.85; }
+  .topbar .vtag { font-size:12px; color:#10b981; margin-left:2px; }
+  .container { max-width:900px; margin:0 auto; padding:16px; }
+  .module { background:#fff; border-radius:10px; margin:16px 0; padding:6px 18px 18px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .module > h2 { font-size:20px; border-bottom:2px solid #3b82f6; padding-bottom:8px; margin:14px 0 10px;
+                 display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  h3 { color:#0f4c81; margin:18px 0 6px; font-size:16px; }
+  .q { position:relative; border:1px solid #eef0f3; border-radius:8px; padding:10px 12px 10px 44px; margin:12px 0; background:#fafbfc; }
+  /* 单题操作按钮：注入在 .q 内、.qbody 之外，不进入朗读文本 */
+  .qacts { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .qacts button { background:#eef2ff; color:#1d4ed8; border:1px solid #c7d7fe;
+                  border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer; }
+  .qacts button:hover { background:#dbe6ff; }
+  .q.is-playing { border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.22); background:#f0f6ff; }
+  /* ===== 分段文字高亮：读题干亮题干、读答案亮整段答案 ===== */
+  .q[data-reading="q"] .qtitle,
+  .q[data-reading="a"] .qbody p.li { border-radius:6px; }
+  .q[data-reading="q"] .qtitle {
+    color:#1e3a8a; background:#e3ebff; box-shadow:0 0 0 4px #e3ebff; }
+  .q[data-reading="a"] .qbody p.li {
+    color:#1e3a8a; background:#fff2cc; box-shadow:0 0 0 4px #fff2cc; font-weight:600; }
+  .q[data-reading="q"] .qtitle code     { background:#c9d9ff; }
+  .q[data-reading="a"] .qbody p.li code { background:#f5dfa0; }
+  .q[data-reading] .qtitle b,
+  .q[data-reading] .qbody p.li b { color:inherit; }
+  .topbar .hidden { display:none; }
+  .qtitle { font-weight:600; margin-bottom:4px; }
+  .qbody .li { margin:4px 0 4px 4px; }
+  .qbody p { margin:4px 0; }
+  code { background:#eef1f5; padding:1px 5px; border-radius:4px; font-family:Consolas,Menlo,monospace; font-size:13px; }
+  .spk { position:absolute; left:8px; top:8px; width:28px; height:28px; border:none; border-radius:50%;
+         background:#3b82f6; color:#fff; cursor:pointer; font-size:14px; line-height:1; }
+  .spkq:hover, .module > h2 .spk:hover { background:#2563eb; }
+  #status { font-size:13px; opacity:.9; }
+  @media (max-width:600px){ .container{padding:8px;} .module{padding:4px 12px 12px;} h2{font-size:17px;} }
+
+  :root { --topbar-height:64px; }
+  .page-layout { display:grid; grid-template-columns:260px minmax(0, 1fr); gap:24px;
+    max-width:1200px; margin:0 auto; padding:0 16px; align-items:start; }
+  .page-layout > .container { width:100%; min-width:0; max-width:none; margin:0; padding:0; overflow-wrap:anywhere; }
+  .toc { position:sticky; top:calc(var(--topbar-height) + 16px); margin:16px 0;
+    max-height:calc(100dvh - var(--topbar-height) - 32px); overflow-y:auto; overscroll-behavior:contain;
+    padding:16px 12px; border:1px solid #e2e6ec; border-radius:10px; background:#fff; }
+  .toc-header { display:flex; justify-content:space-between; align-items:center; margin:0 6px 10px; }
+  .toc-header h2 { margin:0; font-size:17px; }
+  .toc-list, .toc-groups { list-style:none; margin:0; padding:0; }
+  .toc-list > li + li { margin-top:6px; }
+  .toc-row { display:flex; align-items:flex-start; gap:4px; }
+  .toc a { display:block; padding:8px 10px; border-radius:6px; color:#39465b;
+    text-decoration:none; font-size:14px; overflow-wrap:anywhere; }
+  .toc-row > a { flex:1; min-width:0; font-weight:600; }
+  .toc a:hover { background:#f0f5ff; color:#1d4ed8; }
+  .toc a[aria-current="location"] { background:#e8f0ff; color:#1d4ed8; font-weight:700; }
+  .toc a.is-parent { color:#1d4ed8; }
+  .toc-groups { margin:4px 0 8px 12px; padding-left:8px; border-left:1px solid #e2e6ec; }
+  .toc-groups[hidden] { display:none; }
+  .toc-groups a { padding:7px 9px; font-size:13px; }
+  .toc-expand, .toc-close { flex-shrink:0; border:0; border-radius:6px; padding:8px;
+    background:#eef1f5; color:#39465b; font:inherit; cursor:pointer; }
+  .toc-expand { margin-top:3px; line-height:1.3; }
+  .toc a:focus-visible, .toc button:focus-visible, #tocToggle:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+  .module, .module h3, .q { scroll-margin-top:calc(var(--topbar-height) + 16px); }
+  .module > h2 .spk { position:static; width:auto; height:auto; padding:7px 10px; border-radius:6px; font-size:13px; line-height:1.4; }
+  .topbar select { min-width:0; max-width:100%; }
+  .topbar #voiceTag, .topbar #status { overflow-wrap:anywhere; }
+  .topbar #tocToggle, .toc-close, .toc-backdrop { display:none; }
+  @media (max-width:1000px) {
+    .page-layout { display:block; max-width:932px; }
+    .topbar #tocToggle, .toc-close { display:inline-block; }
+    .toc { position:fixed; z-index:30; top:0; bottom:0; left:0; width:min(320px, calc(100vw - 40px));
+      max-height:100dvh; margin:0; border-radius:0; padding:18px 12px; visibility:hidden;
+      transform:translateX(-100%); box-shadow:4px 0 24px rgba(0,0,0,.16); }
+    body.toc-open { overflow:hidden; }
+    body.toc-open .toc { visibility:visible; transform:translateX(0); }
+    body.toc-open .toc-backdrop { display:block; position:fixed; z-index:20; inset:0;
+      background:rgba(15,23,42,.4); border:0; padding:0; }
+  }
+  @media (max-width:600px) { .page-layout { padding:0 8px; } }
+.note{background:#eef6ff;border-left:4px solid #3b82f6;padding:10px 14px;margin:0 0 18px;border-radius:6px;color:#334155;font-size:14px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button id="tocToggle" type="button" aria-controls="toc" aria-expanded="false">☰ 目录</button>
+  <button onclick="playAll()" title="朗读全部" aria-label="朗读全部">🔊</button>
+  <button class="stop" onclick="stopAll()">■ 停止</button>
+  <span class="lbl">语速</span><input id="rate" aria-label="朗读语速" type="range" min="0.6" max="1.4" step="0.1" value="1">
+  <span class="lbl" id="onlineVoiceLbl">在线语音</span><select id="voice" aria-label="朗读语音"></select>
+  <button id="previewVoice" type="button" onclick="previewVoice()">试听</button>
+  <span id="voiceTag" class="vtag" role="status"></span>
+  <span class="lbl">模式</span><select id="mode" aria-label="播放模式">
+    <option value="offline">离线音频</option><option value="online">在线朗读</option></select>
+  <span class="lbl" id="ttsVoiceLbl">音色</span><select id="ttsVoice" aria-label="预生成音色">
+    <option value="xiaoxiao">晓晓</option></select>
+  <span class="lbl" id="scopeLbl">范围</span><select id="scope" aria-label="连播范围">
+    <option value="full">全文（题+答案）</option><option value="q">只听题</option>
+    <option value="a">只听答案</option></select>
+  <span id="status"></span>
+  <label class="lbl" title="播放时自动滚动定位到当前题"><input type="checkbox" id="followPlay" checked>跟随朗读</label>
+  <label class="lbl" title="朗读时高亮当前题干或答案文字"><input type="checkbox" id="textHighlight" checked>文字高亮</label>
+  <button type="button" id="backToCurrent" class="hidden alt" title="回到正在朗读的题目">↩ 回到当前题</button>
+</div>
+<div class="page-layout">
+<aside class="toc" id="toc" aria-labelledby="tocTitle">
+  <div class="toc-header">
+    <h2 id="tocTitle">目录</h2>
+    <button class="toc-close" id="tocClose" type="button" aria-label="关闭目录">关闭</button>
+  </div>
+  <nav aria-label="模块与分组导航"><ul class="toc-list" id="tocList"></ul></nav>
+</aside>
+<div class="container">
+<p class="note">本页共 100 道 Spring Cloud 全家桶面试题，按 10 个组件模块组织，每模块分「中级 / 高级 / 进阶」三档难度。默认使用晓晓离线女声朗读，音频位于同目录 <code>sc_audio/xiaoxiao/</code>，请勿移动或改名；若某段音频缺失，会自动回退到浏览器本地在线朗读。</p>
+<section class="module" id="mod1">
+<h2>模块一：服务注册与发现 <button class="spk" onclick="speakModule(1)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody1">
+<h3 id="mod1-basic">A. 注册发现基础与 CAP（中级）</h3>
+<div class="q" id="m1q1">
+<button class="spk spkq" onclick="speakId('m1q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>微服务实例动态扩缩容和漂移时，为什么必须引入注册中心替代静态地址配置？</b></div>
+<p class="li"><b>参考答案</b>：单体时静态 ip 尚能维护，但微服务实例随扩缩容、发布与故障频繁漂移，硬编码或配置文件无法实时感知。注册中心把服务名与实例地址解耦：提供者启动时登记 ip、端口、权重和元数据并定期续约，消费者按服务名拉取或订阅列表，再由客户端负载均衡选路。于是扩缩容、上下线和故障切换都对调用方透明，无需逐个改配置重启。</p>
+<p class="li">它还统一承载健康检查、元数据路由、权重与分组，是灰度、同机房优先和熔断的前置数据源；没有它，服务治理只能退化成 nginx 手工维护 upstream，变更慢且易错。落地要权衡一致性与可用性：注册中心自身做集群多副本容灾，客户端也缓存实例列表，避免注册中心短暂不可用时整体瘫痪，这正是 AP 与 CP 取舍的现实起点。</p>
+<p class="li"><b>核心考察点</b>：考察注册中心存在的根本原因：解耦服务名与动态网络地址，支撑弹性伸缩与故障自愈，并理解其作为服务治理数据源和一致性取舍起点的定位。</p>
+<p class="li"><b>面试追问</b>：如果注册中心整体宕机，已运行的消费者还能否继续调用？请结合客户端本地缓存、缓存过期策略和调用失败后的降级思路说明，以及如何避免缓存长期不刷新导致流量打到已下线实例。</p>
+</div>
+</div>
+<div class="q" id="m1q2">
+<button class="spk spkq" onclick="speakId('m1q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>注册中心的核心能力有哪些，心跳续约和主动探测两类健康检查如何配合摘除故障实例？</b></div>
+<p class="li"><b>参考答案</b>：注册中心核心能力是注册与反注册、列表查询订阅、健康检查摘除和元数据权重管理。健康检查有两条路径：客户端心跳续约，实例周期发心跳，服务端连续多周期未收到就置不健康并剔除，Nacos 临时实例默认约 5 秒心跳、30 秒摘除；另一种是服务端或 agent 主动探测，Consul 支持 HTTP、TCP 与脚本检查，Eureka 靠实例上报。阈值太短易被 GC 停顿误判，太长则故障残留久。</p>
+<p class="li">无论哪种方式，摘除都要触发推送或失效通知，让消费者尽快刷新本地列表，否则会留出调用已死实例的窗口。心跳机制实现简单、扩展性好，适合大规模临时实例；主动探测更贴近真实可用性，能发现进程存活但业务僵死，代价是压力随实例数增长。Nacos 2.x 改用 gRPC 长连接后把心跳收敛为连接保活，断链即感知；Consul 则由本地 agent 分担探测再同步结果。</p>
+<p class="li"><b>核心考察点</b>：考察注册中心四大核心职责，以及心跳续约与主动探测两类健康检查的差异、摘除时序、阈值权衡，和摘除后如何让消费者及时刷新实例列表。</p>
+</div>
+</div>
+<div class="q" id="m1q3">
+<button class="spk spkq" onclick="speakId('m1q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>从 CAP 定理看，服务注册中心为何通常在 AP 与 CP 之间取舍，而不能三者兼得？</b></div>
+<p class="li"><b>参考答案</b>：CAP 指网络分区时一致性、可用性与分区容错性不可兼得，必须容忍分区，于是只剩 AP 或 CP 二选一。注册中心存服务名到实例列表的映射，更在意能否拿到可用地址，而非地址绝对最新。选 CP 如 ZooKeeper、Consul 走 <code>Raft</code>，分区时少数派拒读写；选 AP 如 Eureka、Nacos 临时实例，各节点照常读写，宁可返回稍滞后旧列表，也保证总能选出实例。</p>
+<p class="li">注册场景普遍倾向 AP：短暂拿到已下线实例，可由客户端重试、熔断和幂等兜底，比注册中心拒绝服务更可控，这也是 Eureka 自我保护宁可不摘除的动机。但配置、分布式锁和 leader 选举必须强一致，Nacos 配置与持久实例走 <code>Raft</code> 偏 CP、临时实例走 <code>Distro</code> 偏 AP，是按数据类型分区取舍。工程上再用客户端缓存与最终一致同步收敛。</p>
+<p class="li"><b>核心考察点</b>：考察 CAP 在注册场景的落地判断：分区下 AP 与 CP 的代价差异、注册发现为何偏 AP、配置与持久实例偏 CP，及自我保护与客户端缓存的兜底逻辑。</p>
+</div>
+</div>
+<h3 id="mod1-nacos">B. Nacos 深入（高级）</h3>
+<div class="q" id="m1q4">
+<button class="spk spkq" onclick="speakId('m1q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos 临时实例与持久实例在 <code>ephemeral</code>、健康检查和一致性模型上有何区别？</b></div>
+<p class="li"><b>参考答案</b>：<code>ephemeral</code> 由 <code>spring.cloud.nacos.discovery.ephemeral</code> 控制，默认 true 临时、false 持久。临时实例面向弹性业务进程，靠客户端心跳保活，超时即摘除且不落盘，走 <code>Distro</code> 偏 AP。持久实例面向数据库等长期资产，健康检查改为服务端主动探测，数据落盘由 <code>Raft</code> 保 CP，只能显式反注册删除。</p>
+<p class="li">源码上注册入口是 <code>InstanceController</code>，临时与持久实例由不同 OperationService 分别处理，持久侧经 <code>JRaft</code> 提交日志达成多数派一致，临时侧只写内存再由 <code>Distro</code> 异步同步，剔除由定时心跳检查任务完成。生产里无状态服务应保持临时实例，仅无法上报心跳或要列表稳定可审计才设持久实例；若误用会导致进程已死地址长期残留，流量持续打到僵尸节点。</p>
+<p class="li"><b>核心考察点</b>：考察 <code>ephemeral</code> 语义，临时与持久实例在心跳与主动探测、内存与落盘、AP 与 CP 上的分野，及相关源码类与生产选型边界。</p>
+</div>
+</div>
+<div class="q" id="m1q5">
+<button class="spk spkq" onclick="speakId('m1q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos 1.x 的 <code>Distro</code> 协议为何偏 AP，如何做数据同步并处理分区脑裂？</b></div>
+<p class="li"><b>参考答案</b>：<code>Distro</code> 是 Nacos 1.x 为临时实例设计的去中心化 AP 协议，节点平等无 leader。它按服务名哈希把实例分派到责任节点，写请求落到责任节点后立即写本地内存即返回，不追求多数派一致，因此分区时存活节点仍可独立读写。同步靠异步任务：责任节点定时广播全量摘要，其他节点比对后只拉差异数据，属最终一致，新节点启动也全量拉取补齐。写路径短、易扩展，代价是视图有短暂不一致。</p>
+<p class="li">之所以敢这样取舍，是因为临时实例靠心跳续约、数据天然可再生，节点数据丢失后客户端下次心跳或重注册即可补回。脑裂时 <code>Distro</code> 不阻塞写入，分区两侧各自服务，恢复后靠定时校验与全量拉取合并，重复实例由心跳超时清除，最终收敛。这与配置、持久实例走的 <code>Raft</code> 相反，后者分区时少数派拒写保 CP，同步任务由 Distro 一致性服务承载。</p>
+<p class="li"><b>核心考察点</b>：考察 <code>Distro</code> 责任节点分片、异步摘要比对同步、心跳可再生数据带来的 AP 取舍，以及脑裂后的最终收敛、对照 <code>Raft</code> CP 路径的分野。</p>
+<p class="li"><b>面试追问</b>：<code>Distro</code> 按服务名哈希分派责任节点，那么扩容节点后分片如何重新均衡、期间为何会有短暂列表缺失？再说明 2.x 改为长连接后，这套异步摘要同步机制为何被弱化。</p>
+</div>
+</div>
+<div class="q" id="m1q6">
+<button class="spk spkq" onclick="speakId('m1q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos 2.x 的 <code>JRaft</code> 和 gRPC 长连接，给注册发现与健康检查带来哪些变化？</b></div>
+<p class="li"><b>参考答案</b>：Nacos 2.x 用 gRPC 双向长连接取代 1.x 的 HTTP 短连接加 UDP 推送。客户端启动时与节点建连并注册，连接本身成为存活凭据：服务端靠连接保活与断链事件感知实例，断链即摘除该连接上的实例，不再依赖 5 秒一次的独立心跳，健康检查从定时上报变为连接状态驱动。客户端被抽象为 <code>Client</code> 对象，由 <code>ClientManager</code> 统一维护连接、注册与订阅关系。</p>
+<p class="li">一致性层用 <code>JRaft</code> 替换自研 Raft，配置与持久实例靠提交日志达成多数派一致；临时实例仍沿 <code>Distro</code> 思路，同步改由长连接推送，可靠性高于 UDP。变更推送也从 UDP 通知加定时拉取，变为长连接即时 push，配合重连全量补偿。源码入口在 <code>GrpcRequestAcceptor</code>，升级要注意 gRPC 端口为主端口加 1000 的偏移。</p>
+<p class="li"><b>核心考察点</b>：考察 2.x 长连接替代心跳与 UDP 推送、连接驱动的健康检查、<code>JRaft</code> 替换自研 Raft，及 gRPC 端口偏移等升级注意点。</p>
+</div>
+</div>
+<div class="q" id="m1q7">
+<button class="spk spkq" onclick="speakId('m1q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos 实例变更时 1.x 的 UDP 推送与 2.x 长连接推送有何差异，为何仍保留拉取？</b></div>
+<p class="li"><b>参考答案</b>：1.x 中消费者用 <code>HostReactor</code> 维护本地列表并订阅变更，实例增删后服务端由 <code>PushService</code> 经 UDP 把服务名推给订阅方，客户端标记过期再触发一次拉取；但 UDP 无连接、不保证送达，容器网络易丢包，因此客户端另有定时拉取任务回源比对兜底，形成以推提速、以拉保底的推拉结合。UDP 还要求客户端开放接收端口，在 NAT 与 k8s 环境常受限。</p>
+<p class="li">2.x 改为 gRPC 长连接后，服务端经连接直接推送变更事件，客户端即时更新，时延与可靠性优于 UDP，且无需反向端口。但拉取仍保留：重连或推送丢失时，客户端用重连后的全量 <code>ServiceInfo</code> 拉取重建视图，避免增量事件丢失导致列表残缺。生产还要开 <code>pushEmptyProtection</code> 防空推送误清实例，并配合本地缓存与合理拉取间隔，在实时性和服务端压力间取平衡。</p>
+<p class="li"><b>核心考察点</b>：考察 1.x UDP 推送加定时拉取的推拉结合、UDP 在 NAT 环境的局限，2.x 长连接即时推送与重连全量补偿，以及空推送保护等生产细节。</p>
+</div>
+</div>
+<h3 id="mod1-compare">C. Eureka、Consul 对比与选型（进阶）</h3>
+<div class="q" id="m1q8">
+<button class="spk spkq" onclick="speakId('m1q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>相比 Eureka，Nacos 在自我保护、集群模型、健康检查和配置中心能力上有哪些关键差异？</b></div>
+<p class="li"><b>参考答案</b>：集群模型上 Eureka 是去中心化对等复制，无 leader，靠 <code>renew</code> 续约维持最终一致，纯 AP；Nacos 则有 <code>Distro</code>、<code>Raft</code> 两条路径，临时实例偏 AP、配置与持久实例偏 CP。健康检查上，Eureka 在续约成功率低于 85% 时进入自我保护，停止剔除并保留可能已死的列表；Nacos 临时实例有明确心跳超时剔除窗口。</p>
+<p class="li">能力边界上 Eureka 只做注册发现，配置须另配；Nacos 原生把注册与配置中心合一，提供 <code>DataId</code>、<code>Group</code>、<code>Namespace</code> 三级隔离与 <code>@RefreshScope</code> 动态刷新，这是迁移主因。生态上 Eureka 已进入维护、Nacos 仍活跃迭代，2.x 长连接更适合大规模云原生；若只需轻量纯 AP 发现，Eureka 依旧够用。</p>
+<p class="li"><b>核心考察点</b>：考察 Eureka 自我保护阈值、去中心化对等复制与 Nacos 双一致性模型的对比，健康检查方式差异，以及 Nacos 原生配置中心能力和生态演进。</p>
+</div>
+</div>
+<div class="q" id="m1q9">
+<button class="spk spkq" onclick="speakId('m1q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Consul 如何基于 <code>Raft</code>、ACL、KV 和多数据中心构建服务治理，哪些场景应优先选它？</b></div>
+<p class="li"><b>参考答案</b>：Consul 是 CP 型注册中心，每个数据中心由 server 组成 <code>Raft</code> 集群，注册与 KV 变更都提交日志达成多数派一致，分区时少数派拒写。各节点跑 agent，健康检查由本地 agent 主动探测，结果经 LAN gossip 收敛。ACL 以 token 做细粒度鉴权，约束注册、发现与 KV 访问；KV 可当配置中心。</p>
+<p class="li">多数据中心是 Consul 招牌：各 DC 独立 <code>Raft</code>、经 WAN gossip 互联，可做跨 DC 故障转移，适合异地多活。服务发现支持 DNS 与 HTTP，对非 Java 与遗留系统友好。多语言栈、需强一致配置与 KV、严格 ACL 合规、跨 DC 发现时应优先选它；代价是 <code>Raft</code> 选主与运维更复杂，单 DC 场景反而 Nacos 更轻。</p>
+<p class="li"><b>核心考察点</b>：考察 Consul 的 <code>Raft</code> 强一致、agent 主动健康检查与 gossip、ACL 鉴权、KV 配置、多 DC 与 DNS 发现，及选型边界。</p>
+</div>
+</div>
+<div class="q" id="m1q10">
+<button class="spk spkq" onclick="speakId('m1q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>大规模实例场景下注册中心有哪些性能瓶颈，注册不上和幽灵实例应如何定位与治理？</b></div>
+<p class="li"><b>参考答案</b>：瓶颈集中在四处：海量实例心跳带来写放大，列表全量推送在频繁变更时形成广播风暴，服务过多撑大单节点内存，一致性同步与选主在扩容时开销上升。幽灵实例指进程已退出但注册中心仍留地址、调用仍在打，根因多是优雅停机缺失：进程被直接 kill、心跳超时窗口过长、长连接未正常关闭、推送延迟使消费者缓存未失效。注册不上则常因线程池或连接数打满、gRPC 队列积压，以及端口偏移配置错误。</p>
+<p class="li">治理要分层：写入侧按服务分片、用长连接收敛心跳、改全量广播为增量推送；容量上按实例规模压测、水平扩容并隔离大租户。停机侧强制优雅关闭，先调反注册接口置 OUT_OF_SERVICE，配合 <code>server.shutdown=graceful</code> 与 k8s preStop 先摘流量再退出，缩短摘除窗口并让缓存及时失效。可观测上监控注册数、心跳成功率与缓存年龄，再用健康检查与熔断兜底。</p>
+<p class="li"><b>核心考察点</b>：考察大规模下心跳写放大、推送风暴、内存与一致性瓶颈，以及幽灵实例和注册不上的根因，覆盖优雅停机、反注册、增量推送与可观测治理。</p>
+<p class="li"><b>面试追问</b>：假设压测中发现实例数翻倍后注册成功率骤降、同时出现调用到已下线实例，请给出一套从服务端线程池、心跳与推送策略、客户端缓存时效到优雅停机的排查顺序和对应配置项。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod2">
+<h2>模块二：负载均衡 <button class="spk" onclick="speakModule(2)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody2">
+<h3 id="mod2-basic">A. 负载均衡原理与算法（中级）</h3>
+<div class="q" id="m2q1">
+<button class="spk spkq" onclick="speakId('m2q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>服务端负载均衡与客户端负载均衡在调用链路、故障感知和扩展性上有何本质区别？</b></div>
+<p class="li"><b>参考答案</b>：服务端负载均衡把决策集中在独立中间层，如 F5、LVS、nginx 或云 CLB，调用方只认虚拟 IP 由中间层转发。它对客户端零侵入、多语言友好、便于统一做 TLS 终止与限流，但多一跳、有集中单点，扩容和策略定制受设备约束。客户端负载均衡把列表拉到本地，由进程内组件直接选路，典型是配合 <code>@LoadBalanced</code> 的 <code>RestTemplate</code>，少一跳、能按权重精细决策。</p>
+<p class="li">故障感知路径也不同：服务端 LB 靠自身对后端的主动健康探测摘除，客户端 LB 则依赖注册中心的健康检查和本地缓存刷新，缓存滞后就可能打到已下线实例，需要重试、熔断和优雅停机配合。微服务普遍选客户端 LB，是因为服务间调用海量且拓扑动态，集中设备易成瓶颈。生产常两者叠加：入口用网关做南北向分发，内部服务间用客户端 LB 做东西向路由。</p>
+<p class="li"><b>核心考察点</b>：考察集中式与进程内两类负载均衡在链路跳数、单点、多语言支持、故障感知和扩展性上的权衡，以及微服务为何偏客户端 LB 并与入口网关叠加使用。</p>
+</div>
+</div>
+<div class="q" id="m2q2">
+<button class="spk spkq" onclick="speakId('m2q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>轮询、加权轮询、随机、最少连接和一致性哈希各适合什么场景，各自的缺陷是什么？</b></div>
+<p class="li"><b>参考答案</b>：轮询把请求依次均分，实现简单、绝对均衡，但假设实例同构、请求成本相近，遇机器性能差异或长耗时请求就倾斜；加权轮询用权重表达处理能力，适配异构机型与灰度放量，缺点是权重静态、不随负载自适应，需配合动态权重或 <code>weight</code> 元数据。随机在请求量大时近似轮询、无状态最轻，小样本下波动明显。最少连接把新请求给活跃连接最少的实例，能感知真实负载、适合长连接服务，代价是要维护计数。</p>
+<p class="li">一致性哈希按请求 key 哈希到环上，节点增减只迁移相邻分片，适合有状态路由、会话粘滞和缓存命中敏感场景，缺陷是热点 key 压垮单节点、节点少时倾斜，需虚拟节点打散。Spring Cloud LoadBalancer 默认 <code>RoundRobinLoadBalancer</code>，也提供随机实现与自定义策略接口。生产纯无状态短请求多用加权轮询，有缓存亲和才上一致性哈希。</p>
+<p class="li"><b>核心考察点</b>：考察五类负载均衡算法的原理与适用边界，轮询倾斜、静态权重、最少连接计数失真、一致性哈希热点与虚拟节点，以及 LoadBalancer 中的对应实现。</p>
+</div>
+</div>
+<div class="q" id="m2q3">
+<button class="spk spkq" onclick="speakId('m2q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>负载均衡中的加权预热、健康检查和故障实例摘除分别解决什么问题，如何协同工作？</b></div>
+<p class="li"><b>参考答案</b>：三者是让选路既准又稳的配套机制。加权预热针对刚启动实例：JVM 待 JIT 预热、连接池与本地缓存未填，若按全权重立刻灌入同等流量会大量超时抖动，因此按上线时长或就绪状态让权重从低到高平滑爬升，可借 <code>WeightedServiceInstanceListSupplier</code> 实现。健康检查判定实例是否可用，分注册中心侧探测与客户端侧调用统计两条线；摘除则把不健康实例暂移出候选列表。</p>
+<p class="li">协同上，健康检查产生信号、摘除执行过滤、预热决定恢复后的爬升曲线，三者作用于同一份 <code>ServiceInstanceListSupplier</code> 输出。LoadBalancer 提供健康检查 Supplier 主动隔离、重试感知 Supplier 规避上次失败实例。生产要设好阈值，避免 GC 停顿或网络抖动被误判而连锁摘除，也要给被摘实例留半开探测与恢复路径。</p>
+<p class="li"><b>核心考察点</b>：考察冷启动预热避免新实例被打满、健康检查双路径、故障摘除与半开恢复的协同，以及 LoadBalancer 中健康检查和重试感知的 Supplier 实现。</p>
+</div>
+</div>
+<h3 id="mod2-lb">B. Spring Cloud LoadBalancer（高级）</h3>
+<div class="q" id="m2q4">
+<button class="spk spkq" onclick="speakId('m2q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Ribbon 停维护后与替代组件是什么关系，迁移时依赖和配置如何调整？</b></div>
+<p class="li"><b>参考答案</b>：Ribbon 进入维护模式后不再演进，基于阻塞式 API 难融入响应式栈。Spring Cloud 从 Hoxton 起以自研组件替代，2020.0 起移除 Ribbon 默认依赖。新组件以 Reactor 为底座，核心接口是 <code>ReactiveLoadBalancer</code> 与 <code>ServiceInstanceListSupplier</code>，原生支持响应式调用。</p>
+<p class="li">迁移先换依赖：移除 Ribbon 的 starter、加入 <code>spring-cloud-starter-loadbalancer</code>。再换配置：<code>ribbon.*</code> 与自定义 <code>IRule</code> 失效，需改写为响应式接口。注意 2020.0.x 后 bootstrap 上下文默认关闭，若仍依赖 bootstrap 配置须显式加 <code>spring-cloud-starter-bootstrap</code>。</p>
+<p class="li"><b>核心考察点</b>：考察 Ribbon 停维护与替代动因、2020.0 依赖移除、自定义规则改写，及 <code>spring-cloud-starter-bootstrap</code> 显式引入。</p>
+<p class="li"><b>面试追问</b>：迁移后若自定义了 <code>IRule</code>，映射到新负载均衡器时应实现哪个接口、如何按服务粒度生效？再说明为何响应式栈不能沿用阻塞式 <code>RestTemplate</code> 老写法。</p>
+</div>
+</div>
+<div class="q" id="m2q5">
+<button class="spk spkq" onclick="speakId('m2q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud LoadBalancer 有哪些选路扩展点，实例列表供应与选路如何解耦？</b></div>
+<p class="li"><b>参考答案</b>：新架构把拿到候选列表与从列表里选一个彻底解耦。<code>ServiceInstanceListSupplier</code> 产出 <code>Flux</code> 形式实例列表，内部从 <code>DiscoveryClient</code> 取原始列表，再叠加缓存、健康检查、区域偏好与权重等装饰层，由构造器层层包装成责任链。<code>ReactiveLoadBalancer</code> 及默认轮询实现只管按算法选出一个实例。</p>
+<p class="li">扩展点因此清晰：要影响哪些实例可选，就自定义或装饰 <code>ServiceInstanceListSupplier</code>，如按 metadata 过滤灰度版本、按同机房过滤；要改变怎么选，就实现响应式选路接口重写 <code>choose</code>，用 <code>@LoadBalancerClient</code> 注册到独立子上下文。源码可看 <code>LoadBalancerBeanPostProcessor</code>。</p>
+<p class="li"><b>核心考察点</b>：考察实例列表供应与选路职责的解耦、Builder 装饰链，及两类扩展点对应的接口与按服务注册方式。</p>
+</div>
+</div>
+<div class="q" id="m2q6">
+<button class="spk spkq" onclick="speakId('m2q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>如何自定义负载均衡策略，实现按版本灰度或同机房优先的实例路由？</b></div>
+<p class="li"><b>参考答案</b>：两条路径各有侧重。同机房优先属于过滤候选问题：配置 <code>spring.cloud.loadbalancer.zone</code> 后启用区域偏好 Supplier，只保留同 zone 实例，无同 zone 时回退全部实例保可用。按版本灰度则透传请求头，如灰度标记或白名单，在过滤阶段只保留 metadata 里 <code>version</code> 匹配的实例。</p>
+<p class="li">实现上自定义 <code>ServiceInstanceListSupplier</code> 装饰原始 supplier，在返回的 <code>Flux</code> 列表上过滤，再经构造器装配；请求头透传可用 <code>RequestData</code> 带进选路线程。策略型灰度也可实现响应式选路接口，在 <code>choose</code> 里按权重把流量分到 baseline 与 canary 两组。生产必须留兜底，灰度实例全挂时自动回退稳定版本。</p>
+<p class="li"><b>核心考察点</b>：考察区域偏好 Supplier 做同 zone 优先、metadata 与请求头过滤做版本灰度，及自定义选路器与兜底回退的生产要点。</p>
+</div>
+</div>
+<div class="q" id="m2q7">
+<button class="spk spkq" onclick="speakId('m2q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud LoadBalancer 的实例列表缓存如何工作，怎样刷新和失效？</b></div>
+<p class="li"><b>参考答案</b>：LoadBalancer 默认在 supplier 层加缓存。<code>CachingServiceInstanceListSupplier</code> 把每个服务 id 的列表放进缓存管理器。配置集中在 <code>spring.cloud.loadbalancer.cache</code>：ttl 默认约 35 秒。请求先命中本地缓存直接选路，过期或失效才回源，把拉取 QPS 收敛到每 ttl 一次。</p>
+<p class="li">刷新与失效是关键。缓存并非只等 ttl 到期，Spring Cloud 监听 <code>HeartbeatEvent</code> 等事件，由 <code>CacheManager</code> 主动清理对应服务缓存，实例上下线时 supplier 接到通知立即失效，避免长期用旧列表打到幽灵实例。生产要在实时性与压力间调优：ttl 过长则变更感知慢，过短则拉取风暴压向注册中心；大规模还应配合长连接推送与优雅停机。</p>
+<p class="li"><b>核心考察点</b>：考察实例列表缓存机制、缓存配置的 ttl 与容量，及事件驱动失效和实时性与拉取压力的权衡。</p>
+</div>
+</div>
+<h3 id="mod2-prod">C. 灰度、重试与生产问题（进阶）</h3>
+<div class="q" id="m2q8">
+<button class="spk spkq" onclick="speakId('m2q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>客户端负载均衡的重试为什么会引发重试风暴，幂等设计和幂等键应如何配合？</b></div>
+<p class="li"><b>参考答案</b>：重试是把双刃剑。下游抖动时自动换实例重试能提升成功率，但高负载下被放大：一次失败触发网关、LB 与调用链各自重试，请求成倍叠加，配合过长超时与无退避，瞬间压垮吃紧的服务，形成重试风暴甚至雪崩。更隐蔽的是非幂等写，重复下单、重复扣款会数据错乱。因此第一原则是只对幂等接口重试，如 GET、PUT、DELETE 及带幂等键的 POST；重试需显式开启，默认关闭。</p>
+<p class="li">幂等落地靠幂等键：客户端为每次请求生成唯一 <code>Idempotency-Key</code> 或业务单号，服务端用 Redis <code>SETNX</code> 或数据库唯一索引记录首次结果，重复键直接返回并设过期。重试要配同实例与换实例次数上限，用指数退避加抖动打散、设总超时预算，且只重试可安全重放的状态码。再叠加熔断限流，失败率过高就快速失败，并用全链路日志与去重命中率监控，确认重试换来的是成功率而非放大流量。</p>
+<p class="li"><b>核心考察点</b>：考察重试风暴成因与多层重试放大、只对幂等接口重试的原则、幂等键加去重表的实现，及退避抖动、次数上限、熔断与超时预算的配套治理。</p>
+<p class="li"><b>面试追问</b>：假设一个下单接口被误配了负载均衡重试，请说明可能造成的业务后果，如何用幂等键和数据库唯一索引补救，以及为什么 GET 类查询可以放心重试而创建类写请求不行。</p>
+</div>
+</div>
+<div class="q" id="m2q9">
+<button class="spk spkq" onclick="speakId('m2q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>灰度发布中区域感知 zone-aware 和权重路由分别解决什么问题，二者如何组合使用？</b></div>
+<p class="li"><b>参考答案</b>：区域感知解决就近与容灾：多可用区部署时优先调用同 zone 实例，降低跨机房时延，同 zone 整体不可用才跨区兜底，由 <code>spring.cloud.loadbalancer.zone</code> 配区域偏好 Supplier 实现。权重路由解决放量比例：按实例或版本分权重，控制新版本承接的流量百分比，实现金丝雀从百分之一逐步放大到全量，可由 <code>weight</code> 元数据生效。</p>
+<p class="li">组合时先按 zone 收敛候选集，再在集内按权重分配，即先保就近、再控版本比例，避免灰度流量被跨区分散导致时延与指标失真。工程上还有三层细节：灰度规则按请求头或白名单命中后要透传整条调用链，保证上下游同版本；权重与 zone 都要留回退，canary 异常或同 zone 无实例时自动退回稳定版本；最后把各版本的 QPS、错误率、P99 做成看板并配回滚阈值。</p>
+<p class="li"><b>核心考察点</b>：考察 zone-aware 就近调用与跨区容灾、权重路由做金丝雀放量的分工，二者先过滤后加权的组合顺序，及规则透传、回退与可观测放量。</p>
+</div>
+</div>
+<div class="q" id="m2q10">
+<button class="spk spkq" onclick="speakId('m2q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>生产上出现流量倾斜和实例已下线仍被调用，可能的根因有哪些，应如何系统性治理？</b></div>
+<p class="li"><b>参考答案</b>：流量倾斜先看算法与数据：加权轮询权重配错或静态权重未随容量更新、一致性哈希热点 key 未打散、最少连接把慢实例误判为低负载而堆积、新实例无预热瞬间被打满，都会让部分节点水位畸高。实例已下线仍被调几乎都指向视图滞后：心跳超时或长连接摘除窗口过长，客户端缓存 ttl 未到期未失效，Nacos 推送丢失且拉取兜底间隔过大，或进程被直接 kill 未反注册就退出。</p>
+<p class="li">治理按链路分层。摘除侧强制优雅停机，<code>server.shutdown=graceful</code> 加 k8s preStop 先反注册置 OUT_OF_SERVICE 再退出，让长连接断链即感知。缓存侧调小 <code>spring.cloud.loadbalancer.cache.ttl</code> 并主动失效，配健康检查 Supplier 隔离失败实例。算法侧启用预热与动态权重，并对流量倾斜与幽灵调用做告警。</p>
+<p class="li"><b>核心考察点</b>：考察流量倾斜的算法与权重根因、幽灵实例背后注册摘除与客户端缓存的视图滞后，以及优雅停机、缓存失效、健康隔离和监控告警的分层治理。</p>
+<p class="li"><b>面试追问</b>：如果只在客户端把缓存 ttl 调得很小来消除幽灵实例，会带来什么新风险？请说明为何必须配合服务端优雅停机、反注册和长连接推送，而不是单靠缩短缓存时间。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod3">
+<h2>模块三：OpenFeign <button class="spk" onclick="speakModule(3)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody3">
+<h3 id="mod3-basic">A. 声明式调用原理（中级）</h3>
+<div class="q" id="m3q1">
+<button class="spk spkq" onclick="speakId('m3q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>OpenFeign 声明式调用的底层原理是什么，接口动态代理与注解契约解析如何协作？</b></div>
+<p class="li"><b>参考答案</b>：OpenFeign 基于 JDK 动态代理，启动时 <code>FeignClientFactoryBean</code> 为接口生成代理，每个方法对应一个同步方法处理器。接口上的 MVC 注解不经 MVC 框架执行，而由 <code>Contract</code> 解析，默认实现把请求映射与参数绑定翻译成方法元数据。<code>Target</code> 绑定服务名和基础地址，最终把元数据拼成 <code>RequestTemplate</code>，为发请求做好准备。</p>
+<p class="li">调用时 <code>Encoder</code> 编码参数与请求体，<code>Client</code> 执行 HTTP 请求，<code>Decoder</code> 反序列化响应，异常交给 <code>ErrorDecoder</code>。源码上代理逻辑落在 <code>ReflectiveFeign</code>。可把 <code>Contract</code> 换成 Feign 原生契约或替换编解码器，但要注意默认契约与 Spring MVC 版本兼容，别在接口上叠加复杂绑定注解。</p>
+<p class="li"><b>核心考察点</b>：考察是否理解声明式调用并非生成客户端代码，而是动态代理加契约解析与请求模板拼装，以及各核心组件的职责边界。</p>
+</div>
+</div>
+<div class="q" id="m3q2">
+<button class="spk spkq" onclick="speakId('m3q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Feign 接口复用 Spring MVC 注解有哪些限制，接口继承和独立配置应注意什么？</b></div>
+<p class="li"><b>参考答案</b>：复用靠 <code>SpringMvcContract</code> 把 <code>@RequestMapping</code> 等注解翻译成方法元数据，但有边界：不要在接口上标 <code>@RequestMapping</code>，否则可能被 MVC 当成控制器映射；矩阵变量、<code>@ModelAttribute</code> 一类复杂绑定并不支持。接口继承父接口时注解会被重复解析、路径容易叠加，官方明确不推荐用继承复用 Feign 声明。</p>
+<p class="li">每个客户端由 <code>FeignContext</code> 维护独立子容器，配置类只在该子容器生效。坑在于标了 <code>@Configuration</code> 的 <code>configuration</code> 类若被主上下文组件扫描捕获，就会升级成全局配置，让所有客户端共享同一 <code>Encoder</code> 或 <code>Retryer</code>；正确做法是不加 <code>@Configuration</code>，或把配置类放到扫描路径之外。</p>
+<p class="li"><b>核心考察点</b>：考察 MVC 注解的兼容边界、接口继承带来的隐患，以及每个客户端独立子容器引发的配置隔离与常见配置污染问题。</p>
+<p class="li"><b>面试追问</b>：若 <code>configuration</code> 配置类被主上下文的组件扫描捕获会有什么后果，如何用 <code>FeignContext</code> 子容器或调整扫描范围，避免所有客户端被迫共享同一套编解码器？</p>
+</div>
+</div>
+<div class="q" id="m3q3">
+<button class="spk spkq" onclick="speakId('m3q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>对比 Feign、RestTemplate 和 WebClient 的线程模型，如何按场景做选型？</b></div>
+<p class="li"><b>参考答案</b>：<code>RestTemplate</code> 是同步阻塞模板，基于 <code>ClientHttpRequestFactory</code>，等待响应时线程一直被占用，官方已转入维护模式。<code>WebClient</code> 属响应式非阻塞客户端，跑在 Reactor Netty 上，返回 <code>Mono</code> 与 <code>Flux</code>，少量事件循环线程即可支撑高并发。OpenFeign 同为阻塞模型，但胜在声明式接口与微服务生态集成。</p>
+<p class="li">选型看技术栈与并发特征：同步的微服务内部调用首选 Feign，配合 <code>LoadBalancer</code> 与熔断降级开箱即用；聚合大量下游或流式长连接场景用 WebClient 避免线程堆积；遗留项目才保留 RestTemplate。特别注意响应式栈里别混入阻塞调用，否则占住 Netty 事件循环，必要时用独立调度器隔离。</p>
+<p class="li"><b>核心考察点</b>：考察三者在阻塞与非阻塞模型、维护状态上的差异，以及能否结合技术栈与并发特征给出合理选型而非只看调用形式。</p>
+</div>
+</div>
+<h3 id="mod3-resilience">B. 超时、重试与降级（高级）</h3>
+<div class="q" id="m3q4">
+<button class="spk spkq" onclick="speakId('m3q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>生产环境如何设置 Feign 的连接超时和读取超时，怎样替换默认的 HTTP 客户端？</b></div>
+<p class="li"><b>参考答案</b>：超时用 <code>spring.cloud.openfeign.client.config.default.connectTimeout</code> 与 <code>readTimeout</code> 配置，单位毫秒，<code>default</code> 为全局，键换成服务名即按实例覆盖。注意 Spring Cloud 2020 之后前缀由旧的 feign.client.config 迁移而来，沿用旧写法会静默失效，按服务名的优先级高于全局默认。</p>
+<p class="li">默认 <code>Client.Default</code> 基于 <code>HttpURLConnection</code>，没有连接池。引入 <code>feign-okhttp</code> 或 <code>feign-httpclient</code> 并开启 <code>enabled</code> 开关后，<code>FeignAutoConfiguration</code> 按条件装配替换实现，从而复用连接池。连接超时小于读取超时，读取超时又要小于网关与下游预算。</p>
+<p class="li"><b>核心考察点</b>：考察是否掌握新版超时配置前缀与全局、按实例的粒度，理解默认客户端无连接池的缺陷及条件装配替换方式。</p>
+</div>
+</div>
+<div class="q" id="m3q5">
+<button class="spk spkq" onclick="speakId('m3q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Feign 默认重试行为如何，为什么与负载均衡重试叠加会引发重试风暴，如何治理？</b></div>
+<p class="li"><b>参考答案</b>：Feign 自带 <code>Retryer.Default</code>，但 Spring Cloud OpenFeign 默认注入 <code>Retryer.NEVER_RETRY</code> 关闭这一层，把重试交给负载均衡或 <code>Spring Retry</code>。若同时开启 <code>Retryer</code>、<code>RetryTemplate</code> 与负载均衡的 <code>MaxAutoRetries</code>，一次失败会被两层笛卡尔式放大，下游瞬时流量成倍增长。</p>
+<p class="li">治理原则是只保留一层重试，优先放在网关或负载均衡侧；设总次数上限与整体超时预算，只对幂等 GET 重试，区分连接异常与 5xx，配合指数退避加抖动。生产显式用 <code>Retryer.NEVER_RETRY</code> 关掉 Feign 层，写操作靠幂等键而非重试兜底，并让重试与熔断、隔离联动避免雪崩。</p>
+<p class="li"><b>核心考察点</b>：考察能否识别两层重试叠加的放大效应，并给出单点重试、幂等约束、退避策略与熔断联动的治理方案。</p>
+<p class="li"><b>面试追问</b>：一次下游 500 毫秒超时在两层各重试 3 次的组合下最多产生多少次请求，你会如何用超时预算和幂等键约束写操作重试带来的重复提交风险？</p>
+</div>
+</div>
+<div class="q" id="m3q6">
+<button class="spk spkq" onclick="speakId('m3q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>两种 Feign 降级方式有什么本质区别，哪一种能拿到具体的异常原因？</b></div>
+<p class="li"><b>参考答案</b>：<code>fallback</code> 要求实现类与接口方法一一对应并注册为容器 Bean，只能返回固定兜底值，拿不到失败原因；<code>FallbackFactory</code> 的 <code>create</code> 回调会收到触发降级的 <code>Throwable</code>，可据此区分超时、<code>DecodeException</code>、4xx 还是 5xx，做差异化兜底与日志打点，一个工厂还能服务多个接口。</p>
+<p class="li">二者都由熔断器触发，在 <code>@FeignClient</code> 上用 <code>fallback</code> 或 <code>fallbackFactory</code> 属性指定，目标类必须是容器 Bean。降级只是返回兜底而非真实结果，<code>ErrorDecoder</code> 抛出的异常经工厂可见，别把业务异常静默吞掉；生产常把 cause 写入链路日志与告警，避免故障被掩盖成正常空数据。</p>
+<p class="li"><b>核心考察点</b>：考察两种降级方式在能否获取触发异常上的本质差异，以及降级工厂与熔断器、异常解码链路之间的联动关系。</p>
+</div>
+</div>
+<div class="q" id="m3q7">
+<button class="spk spkq" onclick="speakId('m3q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>自定义 <code>ErrorDecoder</code> 如何影响异常传播，降级兜底后的本地事务与幂等要如何处理？</b></div>
+<p class="li"><b>参考答案</b>：默认 <code>ErrorDecoder.Default</code> 把非 2xx 包装成 <code>FeignException</code>，携带 <code>status</code> 与响应体；自定义 <code>ErrorDecoder</code> 在 <code>decode</code> 里按业务码转自定义异常，或抛 <code>RetryableException</code> 触发重试，也让 <code>FallbackFactory</code> 感知原因。它只作用于解码阶段，连接超时不经这里。</p>
+<p class="li">降级返回的是兜底值，若调用落在本地事务里，绝不能把降级成功当作下游已提交；写操作要带幂等键，配合唯一索引或状态机去重，读降级可返回缓存或空集合。生产把远程调用放在事务外，用最终一致与补偿任务收敛，避免长事务与重复扣减，并把降级事件单独记录便于对账与人工补偿。</p>
+<p class="li"><b>核心考察点</b>：考察异常解码与传播链路、降级语义与本地事务边界的冲突，以及写操作靠幂等与补偿而非依赖降级结果保证一致性。</p>
+</div>
+</div>
+<h3 id="mod3-observe">C. 日志、链路与调优（进阶）</h3>
+<div class="q" id="m3q8">
+<button class="spk spkq" onclick="speakId('m3q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Feign 首次调用为何偏慢，命名上下文与懒加载机制该怎样做启动预热？</b></div>
+<p class="li"><b>参考答案</b>：首次调用慢源于懒加载：代理虽在启动时创建，但负载均衡 <code>LoadBalancerClient</code> 拉取实例列表、<code>FeignContext</code> 为每个客户端建子容器并初始化编解码器与连接池，都延迟到第一请求。<code>FeignContext</code> 继承 <code>NamedContextFactory</code>，为每个服务名维护独立应用上下文，首次取用才实例化这批 Bean。</p>
+<p class="li">预热：启动后用 <code>ApplicationRunner</code> 主动触发各客户端首调，开启 <code>spring.cloud.loadbalancer.cache</code> 与饿汉式发现把实例预取，新版可用 <code>spring.cloud.loadbalancer.eager-load.clients</code> 指定预加载服务。配合就绪探针，预热完成前不接流量，滚动发布要保证最小可用副本数。</p>
+<p class="li"><b>核心考察点</b>：考察能否把首调延迟定位到子容器懒加载、实例拉取与连接池初始化，并给出饥饿加载、主动预热与就绪探针等方案。</p>
+<p class="li"><b>面试追问</b>：若服务在 K8s 中滚动发布，预热尚未完成就被探针判为就绪并灌入流量，你如何用就绪探针、<code>ApplicationRunner</code> 和最小副本数配合，避免首批请求超时？</p>
+</div>
+</div>
+<div class="q" id="m3q9">
+<button class="spk spkq" onclick="speakId('m3q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>请求拦截器透传链路标识和认证头时，为什么异步线程里会丢失，怎么解决？</b></div>
+<p class="li"><b>参考答案</b>：<code>RequestInterceptor</code> 的 <code>apply</code> 在调用线程执行，从 <code>RequestContextHolder</code> 或 <code>ThreadLocal</code> 取值写入 <code>RequestTemplate</code> 的 header。一旦用 <code>@Async</code> 或 <code>CompletableFuture</code> 切换线程，子线程读不到线程本地变量，header 就丢失，下游拿不到链路标识、鉴权直接 401。</p>
+<p class="li">根治：显式把上下文对象当参数传进异步任务，用 <code>TaskDecorator</code> 包装 <code>ThreadPoolTaskExecutor</code> 复制 MDC，或用 <code>TransmittableThreadLocal</code> 透传；响应式栈改 Reactor <code>Context</code>。认证头建议网关统一解析后放行，Feign 只透传快照并清除伪造同名头；生产加缺失断言日志与告警。</p>
+<p class="li"><b>核心考察点</b>：考察请求拦截器依赖线程本地变量的本质、异步切换导致上下文丢失的根因，以及任务装饰器与响应式上下文等解法。</p>
+</div>
+</div>
+<div class="q" id="m3q10">
+<button class="spk spkq" onclick="speakId('m3q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>把 Feign 日志开到 FULL 有何代价，压缩与 Jackson、Fastjson 各有哪些坑？</b></div>
+<p class="li"><b>参考答案</b>：日志有 NONE、BASIC、HEADERS、FULL 四档，FULL 打印请求与响应 body 及全部 header，代价是序列化整个报文、大量 I/O 与磁盘写，还可能把 token、手机号写进日志造成泄露；且 <code>Logger.Level</code> 要配合该客户端日志为 DEBUG 才生效。生产保持 BASIC 或 HEADERS 并脱敏，仅调试期按客户端开 FULL。</p>
+<p class="li">压缩用 <code>feign.compression.request.enabled</code> 与 <code>response.enabled</code>，要配合 <code>Decoder</code> 处理 gzip。序列化默认用 <code>SpringEncoder</code> 与 <code>SpringDecoder</code>，换 Fastjson 需自定义编解码器，处理日期格式、<code>null</code> 字段、泛型擦除与 <code>Content-Type</code>，否则易字段丢失。</p>
+<p class="li"><b>核心考察点</b>：考察 FULL 级别的性能与数据泄露风险、压缩配置的编解码协同，以及替换默认序列化器时日期、空值与泛型的兼容问题。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod4">
+<h2>模块四：Spring Cloud Gateway <button class="spk" onclick="speakModule(4)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody4">
+<h3 id="mod4-core">A. Route、Predicate 与 Filter（中级）</h3>
+<div class="q" id="m4q1">
+<button class="spk spkq" onclick="speakId('m4q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Gateway 的路由三要素是什么，一次请求在 WebFlux 与 Netty 上的执行流程怎样？</b></div>
+<p class="li"><b>参考答案</b>：三要素是路由（ID、目标地址、断言与过滤器集合）、断言（接收 <code>ServerWebExchange</code> 的函数，全部命中才匹配）和过滤器。网关基于 Spring WebFlux 与 Reactor Netty，全程非阻塞：请求先由 <code>RoutePredicateHandlerMapping</code> 匹配路由，再交给 <code>FilteringWebHandler</code> 组装过滤器链。</p>
+<p class="li">链上 <code>GlobalFilter</code> 与 <code>GatewayFilter</code> 被适配成同一过滤器并按 <code>Ordered</code> 排序，前置正序、后置在响应返回时逆序执行，<code>NettyRoutingFilter</code> 用响应式 <code>HttpClient</code> 转发。过滤器里不能做同步阻塞调用或用线程本地变量传值，否则拖垮事件循环，应改用响应式写法与交换对象属性传递上下文。</p>
+<p class="li"><b>核心考察点</b>：考察是否掌握路由三要素的职责与匹配流程，并明确网关基于 WebFlux 与 Netty 的非阻塞模型而非 Servlet 容器。</p>
+<p class="li"><b>面试追问</b>：既然网关跑在 Netty 事件循环上，某个自定义过滤器里做了同步数据库查询或 <code>Thread.sleep</code> 会有什么后果，如何用响应式写法或独立调度器隔离阻塞调用？</p>
+</div>
+</div>
+<div class="q" id="m4q2">
+<button class="spk spkq" onclick="speakId('m4q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>列举常用的路由断言工厂并说明它们如何组合，权重和时间类断言适合什么场景？</b></div>
+<p class="li"><b>参考答案</b>：常用断言工厂按用途分：路径 <code>Path</code>、方法 <code>Method</code>、请求头 <code>Header</code>、查询参数 <code>Query</code>、Cookie、时间 <code>After</code>（另有 Before、Between）与权重 <code>Weight</code>，都由 <code>RoutePredicateFactory</code> 产出。配置以 name 加 args 书写，多个断言之间是与关系，全部命中才选中路由。</p>
+<p class="li">组合时 Path 定路径、Method 限方法、Header 与 Cookie 做灰度或租户识别、Query 校验必填参数；<code>Weight</code> 按分组与权重比例分流，常用于金丝雀，<code>After</code> 配 <code>ZonedDateTime</code> 做定时上线或活动开关。断言短路与书写顺序无关，权重需同组之和与路由顺序配合，且不保证会话粘滞。</p>
+<p class="li"><b>核心考察点</b>：考察对路径、方法、请求头、查询、Cookie、权重与时间断言的熟悉度，以及逻辑与组合、权重分组和定时断言的典型用法。</p>
+</div>
+</div>
+<div class="q" id="m4q3">
+<button class="spk spkq" onclick="speakId('m4q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>两种路径过滤器改写请求路径的行为有何不同，拼接下游地址时容易踩哪些坑？</b></div>
+<p class="li"><b>参考答案</b>：<code>StripPrefix</code> 只按段数丢弃路径前缀，配置为 1 时把 /api/user/1 变成 /user/1，不改变剩余结构；<code>RewritePath</code> 用正则加替换串整体重写，可任意增删改路径。前者是简单剥离，后者是灵活重排，二者都作用于转发前的路径，区别在是否允许改变路径结构。</p>
+<p class="li">坑：段数写错导致多删或少删，和 <code>Path</code> 断言捕获变量混淆；正则未锚定、替换串写法有误、YAML 里 <code>$</code> 需转义，命名捕获组在 Java 正则里也有固定格式。二者都影响 <code>lb://service</code> 拼接，转发地址自带 path 会叠加前缀；务必用网关端点查看实际生效路由后再压测验证。</p>
+<p class="li"><b>核心考察点</b>：考察能否区分按段剥离与正则重写两种语义，并识别段数计数、正则替换、转义和下游地址叠加等路径拼接陷阱。</p>
+</div>
+</div>
+<h3 id="mod4-filter">B. 过滤器、限流与动态路由（高级）</h3>
+<div class="q" id="m4q4">
+<button class="spk spkq" onclick="speakId('m4q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>全局过滤器与路由过滤器的作用范围有何不同，<code>Ordered</code> 如何决定执行顺序？</b></div>
+<p class="li"><b>参考答案</b>：<code>GlobalFilter</code> 是全局 Bean，作用于所有路由，无需在路由声明，典型如 <code>NettyRoutingFilter</code>、<code>ForwardRoutingFilter</code>；<code>GatewayFilter</code> 由 <code>GatewayFilterFactory</code> 产出，绑定具体路由，只对匹配请求生效。二者最终被 <code>FilteringWebHandler</code> 适配成同一条过滤器链。</p>
+<p class="li">顺序由 <code>Ordered</code> 的 <code>getOrder</code> 决定，值越小越靠前；内置全局过滤器占据转发前后关键位置，自定义鉴权要排在转发之前。前置按 order 正序执行，后置在响应返回时逆序执行；全局与路由级统一排序，别依赖 YAML 书写顺序推断，调试时可打印各过滤器 order 核对。</p>
+<p class="li"><b>核心考察点</b>：考察全局与路由级过滤器在绑定方式上的差异、同一过滤器链的适配机制，以及排序值正序前置与逆序后置的规律。</p>
+</div>
+</div>
+<div class="q" id="m4q5">
+<button class="spk spkq" onclick="speakId('m4q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>网关限流过滤器用的是什么算法，限流键如何定义，Redis 在其中承担什么角色？</b></div>
+<p class="li"><b>参考答案</b>：<code>RequestRateLimiter</code> 默认基于 Redis 令牌桶，依赖 <code>RedisRateLimiter</code> 用 Lua 脚本在 Redis 原子取令牌，保证集群多实例计数一致。核心参数 <code>replenishRate</code> 是每秒补充速率，<code>burstCapacity</code> 是桶容量，<code>requestedTokens</code> 是单次消耗令牌数，超限返回 429。</p>
+<p class="li"><code>KeyResolver</code> 决定限流维度，可按 IP、用户 ID、接口路径或租户取 key；新版本不再提供默认 Bean，必须自定义并用 <code>SpEL</code> 表达式引用，否则找不到 key resolver 而放行或报 403。可用 <code>denyEmptyKey</code> 控制空 key 行为，生产还要监控 Redis 延迟与连接池，避免限流组件自身成为瓶颈。</p>
+<p class="li"><b>核心考察点</b>：考察是否理解 Redis 令牌桶与脚本原子计数、补充速率与桶容量的含义，以及自定义限流键与表达式引用的必填性。</p>
+</div>
+</div>
+<div class="q" id="m4q6">
+<button class="spk spkq" onclick="speakId('m4q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>如何基于路由定义仓储与 Nacos 实现动态路由，Actuator 网关端点在刷新中怎么用？</b></div>
+<p class="li"><b>参考答案</b>：静态路由来自配置文件或 <code>RouteDefinitionLocator</code>；动态路由要实现 <code>RouteDefinitionRepository</code>，它同时具备读取与写入能力，把 <code>RouteDefinition</code> 存到 Nacos 等配置中心，重写读取、保存、删除三个方法，监听配置变更后发布 <code>RefreshRoutesEvent</code> 通知网关。</p>
+<p class="li">刷新由 <code>RouteRefreshListener</code> 监听事件触发 <code>CachingRouteLocator</code> 重建缓存路由；也可调用 Actuator 的 <code>POST /actuator/gateway/refresh</code> 强制刷新，<code>GET /actuator/gateway/routes</code> 查看生效路由。刷新是整表重建而非增量，配置格式要与代码一致，并处理 Nacos 断连与校验。</p>
+<p class="li"><b>核心考察点</b>：考察路由定义仓储与写入器的扩展点、刷新事件重建缓存的链路，以及 Actuator 网关端点查看与强制刷新的用法和配置校验。</p>
+<p class="li"><b>面试追问</b>：动态路由刷新时若某条 Nacos 配置写错了断言名称，网关会整表重建失败还是仅该条失效，你如何用 <code>CachingRouteLocator</code>、配置校验和灰度发布把影响面降到最小？</p>
+</div>
+</div>
+<div class="q" id="m4q7">
+<button class="spk spkq" onclick="speakId('m4q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>网关统一鉴权和业务服务鉴权该如何划分职责，JWT 校验后怎样安全透传用户信息？</b></div>
+<p class="li"><b>参考答案</b>：网关做边界认证：校验 <code>JWT</code> 签名、过期与黑名单，完成粗粒度鉴权与限流，失败直接返回 401 或 403，避免无效流量打到内网；业务服务负责细粒度授权，如数据权限与资源归属，并做二次校验，不能因网关放行就完全信任。纵深防御下服务间调用也应携带凭证或使用双向 TLS。</p>
+<p class="li">透传时网关校验令牌后把用户 ID、租户与角色写入下游请求头，并清除外部伪造的同名头，防止头部欺骗；避免整个令牌裸传，必要时改用内部签名头。响应式里用 <code>ServerWebExchange</code> 的 mutate 重建请求，过滤器顺序要早于路由转发。生产配合密钥轮换、共享公钥与审计日志。</p>
+<p class="li"><b>核心考察点</b>：考察边界认证与细粒度授权的分层、令牌校验内容，以及用户信息透传时的头部伪造防护与请求重建写法。</p>
+</div>
+</div>
+<h3 id="mod4-prod">C. 鉴权、CORS 与排障（进阶）</h3>
+<div class="q" id="m4q8">
+<button class="spk spkq" onclick="speakId('m4q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>网关层配置 CORS 为何会出现响应头重复，OPTIONS 预检请求该如何正确处理？</b></div>
+<p class="li"><b>参考答案</b>：CORS 可用 <code>spring.cloud.gateway.globalcors.corsConfigurations</code> 全局配置。重复头常因网关与下游都加了 <code>Access-Control-Allow-Origin</code>，叠加后多个值让浏览器报错；原则是跨域只在网关统一处理，或用 <code>DedupeResponseHeaderGatewayFilterFactory</code> 去重。</p>
+<p class="li">预检 OPTIONS 不带认证头、不应打到下游，网关应直接放行并返回允许的方法、头与来源，配合 <code>Access-Control-Max-Age</code> 缓存结果；鉴权过滤器要识别并跳过 OPTIONS，否则预检被 401 拦截。生产注意 <code>allowedOriginPatterns</code> 的通配符不能和 <code>allowCredentials</code> 为真同用，Vary 头也要正确。</p>
+<p class="li"><b>核心考察点</b>：考察全局跨域配置、多来源重复响应头的去重策略，以及预检请求在网关短路返回并绕过鉴权的处理方式。</p>
+</div>
+</div>
+<div class="q" id="m4q9">
+<button class="spk spkq" onclick="speakId('m4q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>如何基于权重与自定义 Header 做灰度路由，链路染色标识该如何全链路透传？</b></div>
+<p class="li"><b>参考答案</b>：灰度可用 <code>WeightRoutePredicateFactory</code> 按分组与权重分流，例如 v1 占九成、v2 占一成，或自定义断言读取请求头里的灰度标签、Cookie 或用户标签命中灰度路由，再配合 <code>RewritePath</code> 把请求导向带版本元数据的实例，由 <code>LoadBalancer</code> 按注册中心 metadata 选目标。</p>
+<p class="li">染色：入口网关生成或校验染色标识写入请求头，通过过滤器透传；Feign 侧用 <code>RequestInterceptor</code> 复制该头，异步线程用 <code>TaskDecorator</code> 或 Reactor <code>Context</code> 传递，日志用 MDC 与链路标识关联，消息队列也把染色放进消息头。生产要防伪造染色头、设白名单，并做独立监控与一键回滚。</p>
+<p class="li"><b>核心考察点</b>：考察权重断言与自定义请求头断言的灰度实现、实例元数据选路，以及染色标识跨网关、远程调用、异步与消息的端到端透传。</p>
+</div>
+</div>
+<div class="q" id="m4q10">
+<button class="spk spkq" onclick="speakId('m4q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>网关返回 503、504 或连接被重置时，请给出从入口到下游的完整排查路径？</b></div>
+<p class="li"><b>参考答案</b>：先分层定位：503 多为 <code>LoadBalancer</code> 找不到实例，如服务未注册、健康检查失败、<code>lb://</code> 服务名写错，应查注册中心实例列表；504 多为下游超时，核对 <code>spring.cloud.gateway.httpclient.connect-timeout</code> 与 <code>response-timeout</code>；连接被重置则看下游主动断连、keep-alive 与连接池。</p>
+<p class="li">工具链：用 <code>GET /actuator/gateway/routes</code> 确认路由生效，开 DEBUG 日志看 <code>RoutePredicateHandlerMapping</code> 与 <code>NettyRoutingFilter</code>，抓 Netty 访问日志与响应时间、5xx 比例，核对压缩、TLS 一致；再逐段用 curl 与 telnet 复现，定位是注册、网络还是应用问题。</p>
+<p class="li"><b>核心考察点</b>：考察能否按服务发现、超时、连接重置三类成因分层定位，并熟练运用端点、日志、指标与逐段复现的排障路径。</p>
+<p class="li"><b>面试追问</b>：若只有大响应体接口偶发连接重置而小请求正常，你会重点检查哪些配置，如何区分是网关响应超时、下游 <code>maxInMemorySize</code> 限制还是 Netty 连接池与 keep-alive 问题？</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod5">
+<h2>模块五：熔断限流与降级 <button class="spk" onclick="speakModule(5)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody5">
+<h3 id="mod5-basic">A. 雪崩、断路器与限流算法（中级）</h3>
+<div class="q" id="m5q1">
+<button class="spk spkq" onclick="speakId('m5q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>请说明微服务中服务雪崩与级联失败的形成过程，并列举常见的防护手段有哪些？</b></div>
+<p class="li"><b>参考答案</b>：服务雪崩源于同步调用链上的依赖传导：当下游服务因慢查询、线程池打满或频繁 Full GC 出现延迟，上游线程会阻塞在等待响应上，Web 容器线程迅速耗尽，使本来健康的接口也失去响应，故障沿调用链逐层向上扩散，最终拖垮整个集群。常见触发点有重试风暴、超时设置过长和单一依赖占满共享线程池。防护核心是隔离加快速失败，把故障限制在最小范围。</p>
+<p class="li">工程上用 <code>Hystrix</code> 的线程池隔离或 <code>Sentinel</code> 的并发线程数限流把不同依赖的资源切分开，配合 <code>timeout</code> 超时、<code>DegradeRule</code> 熔断降级、<code>FlowRule</code> 限流以及 <code>fallback</code> 回退，避免局部故障演变为全局不可用。生产还要设置合理的连接池和队列上限，禁用无界队列，并对重试加退避与抖动。</p>
+<p class="li"><b>核心考察点</b>：考察雪崩的级联传导机理、线程耗尽根因，以及隔离、超时、熔断、限流、降级这套组合防护手段的落地思路。</p>
+</div>
+</div>
+<div class="q" id="m5q2">
+<button class="spk spkq" onclick="speakId('m5q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>断路器有哪三种状态，各自在什么条件下相互转换，半开态如何探测恢复？</b></div>
+<p class="li"><b>参考答案</b>：断路器用状态机保护调用方，含 Closed、Open、Half-Open 三态。Closed 下正常放行并统计失败率或慢调用比例，一旦滑动窗口内错误率越过 <code>DegradeRule</code> 阈值就切到 Open；Open 态在 <code>timeWindow</code> 内直接拒绝请求并走降级，不再调用下游，给故障方留出恢复窗口。</p>
+<p class="li">超过熔断时长进入 Half-Open，只放行少量探测请求，成功率达标则回到 Closed 并清空统计，仍失败则退回 Open 重新计时。<code>Resilience4j</code> 的 <code>CircuitBreaker</code> 用 <code>failureRateThreshold</code> 和 <code>waitDurationInOpenState</code> 控制。</p>
+<p class="li"><b>核心考察点</b>：考察断路器三态语义、失败率与最小请求数阈值、熔断时长，以及半开态探测恢复与状态回滚的判定细节。</p>
+<p class="li"><b>面试追问</b>：如果下游是偶发抖动而非持续宕机，半开态的探测流量该如何设置，才能既不误判恢复又不冲击上游？请结合探测请求数、成功比例阈值说明，并指出统计样本过小会带来什么风险。</p>
+</div>
+</div>
+<div class="q" id="m5q3">
+<button class="spk spkq" onclick="speakId('m5q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>固定窗口、滑动窗口、漏桶与令牌桶四种限流算法的原理与边界问题是什么？</b></div>
+<p class="li"><b>参考答案</b>：固定窗口把时间切成等长区间，用计数器在区间内累加，实现简单但存在临界突刺：两个窗口交界处可能瞬间涌入两倍于阈值的流量。滑动窗口把区间再细分为多个小格并随时间滚动，用 <code>LeapArray</code> 这类环形数组统计，能削平临界问题，格数越细越平滑但内存开销越大。漏桶以恒定速率出水，请求先入桶，超出容量即丢弃或排队，能强制整形但无法应对突发。</p>
+<p class="li">令牌桶按固定速率往桶里放令牌，请求取到令牌才放行，桶容量决定允许的突发上限，因此既限制平均速率又保留一定突发能力，<code>Guava</code> 的 <code>RateLimiter</code> 与 <code>Sentinel</code> 的 <code>WarmUp</code> 预热都基于这一思路。生产选型看目标：严格匀速整形用漏桶，允许短时突发用令牌桶；分布式场景要把单机阈值换算成集群总量。</p>
+<p class="li"><b>核心考察点</b>：考察四种限流算法的计数模型、临界突刺与突发处理能力差异，以及滑动窗口细分与集群总量换算的工程取舍。</p>
+</div>
+</div>
+<h3 id="mod5-sentinel">B. Sentinel 规则与持久化（高级）</h3>
+<div class="q" id="m5q4">
+<button class="spk spkq" onclick="speakId('m5q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Sentinel 中资源如何定义，五类规则分别是什么，降级回调如何区分？</b></div>
+<p class="li"><b>参考答案</b>：Sentinel 以资源为核心，方法或 URL 可通过 <code>SphU.entry</code> 埋点或用 <code>@SentinelResource</code> 声明，以 <code>resource</code> 名作为规则与统计的键。五类规则为流控 <code>FlowRule</code>、熔断降级 <code>DegradeRule</code>、热点参数 <code>ParamFlowRule</code>、系统自适应 <code>SystemRule</code> 和授权 <code>AuthorityRule</code>。</p>
+<p class="li"><code>blockHandler</code> 只处理 <code>BlockException</code>，即规则触发的限流或降级，需与原方法同签名并多一个异常参数；<code>fallback</code> 处理业务异常，可用 <code>exceptionsToIgnore</code> 排除特定异常。两者都能在 <code>@SentinelResource</code> 里指定 <code>blockHandlerClass</code> 抽到独立类。规则默认只存内存，重启即失效。</p>
+<p class="li"><b>核心考察点</b>：考察资源埋点方式、五类规则的职责边界，以及 blockHandler 面向 BlockException 与 fallback 面向业务异常的差异。</p>
+</div>
+</div>
+<div class="q" id="m5q5">
+<button class="spk spkq" onclick="speakId('m5q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Sentinel 规则存内存有何痛点，接入 Nacos 时 push 与 pull 如何选？</b></div>
+<p class="li"><b>参考答案</b>：默认内存模式下规则通过控制台或代码 API 下发，只驻留在应用进程内，应用重启或扩容新节点后规则全部丢失，多实例之间也无法保证一致，运维只能逐台重新配置，这在弹性伸缩和容器漂移场景几乎不可用。生产需要把规则外置到配置中心做持久化和集中管理，让所有实例共享同一份规则视图并实时生效。</p>
+<p class="li">接入 Nacos 有两种思路。pull 模式由客户端定时轮询拉取，实现简单但有同步延迟；push 模式由控制台把规则写入 Nacos，借助 <code>NacosDataSource</code> 监听变更并通过 <code>ReadableDataSource</code> 推送到各实例，实时性和一致性更好，是官方推荐方案。落地时自定义 <code>Converter</code> 解析 <code>FlowRule</code> 列表。</p>
+<p class="li"><b>核心考察点</b>：考察内存模式重启丢失与多实例不一致的痛点，以及 pull 定时拉取和 push 监听推送在实时性、一致性上的取舍。</p>
+<p class="li"><b>面试追问</b>：采用 push 模式后，如果 Nacos 短暂不可用，应用启动时拿不到规则该怎么办？请从本地快照兜底和规则默认值两个角度说明降级方案，并说明为何不宜直接放行全部流量。</p>
+</div>
+</div>
+<div class="q" id="m5q6">
+<button class="spk spkq" onclick="speakId('m5q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Sentinel 滑动窗口统计如何实现，集群限流下 Token Server 承担什么角色？</b></div>
+<p class="li"><b>参考答案</b>：Sentinel 统计基于 <code>LeapArray</code> 滑动窗口，把时间切成若干 <code>WindowWrap</code> 样本窗口，用原子数组按时间戳定位并累加 <code>MetricBucket</code> 里的通过数、阻塞数与响应时间，窗口滚动复用避免每秒建对象。<code>StatisticNode</code> 汇总资源维度数据，供 <code>FlowRule</code> 与 <code>DegradeRule</code> 判定读取。</p>
+<p class="li">单机限流只在实例内累加，多实例阈值之和会大于集群真实容量，于是引入集群限流：由独立 <code>Token Server</code> 按 <code>clusterMode</code> 统一发令牌，各应用作为 <code>Token Client</code> 先申请再放行。<code>FlowRule</code> 里用 <code>clusterConfig</code> 指定阈值类型，Server 可内嵌或独立部署，需评估网络开销与单点风险。</p>
+<p class="li"><b>核心考察点</b>：考察 LeapArray 样本窗口与 MetricBucket 的无锁统计原理，以及集群限流中 Token Server 统一发令牌与单点取舍。</p>
+</div>
+</div>
+<h3 id="mod5-compare">C. Hystrix、Resilience4j 与迁移（进阶）</h3>
+<div class="q" id="m5q7">
+<button class="spk spkq" onclick="speakId('m5q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Hystrix 的线程隔离与信号量隔离有何区别，官方为何停止维护并转向维护模式？</b></div>
+<p class="li"><b>参考答案</b>：线程隔离把每个依赖放进独立线程池，请求在池中线程执行，通过池大小做并发上限，超时可中断、支持异步，且下游阻塞不会耗尽 Web 容器线程，隔离最彻底；代价是线程切换、上下文传递与调度开销，池数量多时内存与线程成本高。信号量隔离用 <code>Semaphore</code> 计数器在调用线程内限并发，无额外线程、开销极小，但无法超时中断也不支持异步，下游慢时仍会占用调用线程。</p>
+<p class="li">一般对不稳定的远程依赖用线程隔离，对本地缓存或内存调用用信号量隔离。Hystrix 在 2018 年进入维护模式后停止新增功能，原因是与 <code>RxJava</code> 强耦合、配置笨重，社区转向更轻量的 <code>Resilience4j</code>，后者只依赖 <code>Vavr</code>、函数式可组合。</p>
+<p class="li"><b>核心考察点</b>：考察两种隔离开销与超时能力的差异、各自适用场景，以及 Hystrix 停更的技术与生态原因。</p>
+</div>
+</div>
+<div class="q" id="m5q8">
+<button class="spk spkq" onclick="speakId('m5q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Resilience4j 包含哪五个核心模块，函数式装饰器如何组合多个容错能力？</b></div>
+<p class="li"><b>参考答案</b>：Resilience4j 面向 Java 8 函数式编程，核心是 <code>CircuitBreaker</code> 断路器、<code>RateLimiter</code> 限流器、<code>Bulkhead</code> 舱壁隔离、<code>Retry</code> 重试和 <code>TimeLimiter</code> 超时控制五个模块，另有 <code>Cache</code> 缓存。它只依赖 <code>Vavr</code>，通过 <code>resilience4j-spring-boot2</code> 接入。</p>
+<p class="li">使用上把逻辑包成 <code>Supplier</code>，再用 <code>Decorators.ofSupplier</code> 链式叠加 <code>withCircuitBreaker</code>、<code>withRetry</code>、<code>withBulkhead</code> 和 <code>withRateLimiter</code>，最后 <code>withTimeLimiter</code> 包超时并调用 <code>get</code>。</p>
+<p class="li"><b>核心考察点</b>：考察五大模块职责、函数式 Decorators 链式装饰的顺序语义，以及注解与 Registry 监控的接入方式。</p>
+</div>
+</div>
+<div class="q" id="m5q9">
+<button class="spk spkq" onclick="speakId('m5q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>从 Hystrix 或 Sentinel 迁移到 Resilience4j，注解与配置如何改造？</b></div>
+<p class="li"><b>参考答案</b>：注解层面，Hystrix 的 <code>@HystrixCommand</code> 与 <code>fallbackMethod</code> 要改为 <code>@CircuitBreaker</code> 和 <code>@RateLimiter</code>，兜底方法统一用 <code>fallbackMethod</code> 指定并接收原异常加 <code>Throwable</code>，熔断打开时抛 <code>CallNotPermittedException</code>。</p>
+<p class="li">配置层面，Hystrix 的线程池参数和 Sentinel 的 <code>FlowRule</code>、<code>DegradeRule</code> 代码式规则，要换成按实例命名的 <code>failureRateThreshold</code>、<code>waitDurationInOpenState</code> 等前缀化配置，并删掉旧 starter、引入 <code>resilience4j-spring-boot2</code>。</p>
+<p class="li"><b>核心考察点</b>：考察注解回调签名、限流降级语义合并、规则代码式到前缀化配置的映射，以及 starter 依赖的替换路径。</p>
+<p class="li"><b>面试追问</b>：迁移后如果原来依赖 Hystrix Dashboard 做监控，新体系下该如何补齐指标与可视化？请说明 Micrometer 与 Prometheus 的接入要点，并指出断路器事件监听还能提供哪些状态变化信息。</p>
+</div>
+</div>
+<div class="q" id="m5q10">
+<button class="spk spkq" onclick="speakId('m5q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>生产环境如何压测确定限流阈值，降级返回值该怎样设计并保证兜底幂等？</b></div>
+<p class="li"><b>参考答案</b>：阈值不能拍脑袋，要先在单实例上做容量压测：逐步加压找出 CPU、线程、数据库连接池和响应时间的拐点，取系统在可接受延迟下的稳态吞吐作为基线，再按集群实例数换算总阈值并留出安全余量，同时区分核心链路与非核心链路设置不同 <code>FlowRule</code>。还要覆盖冷启动与依赖慢化场景，用 <code>WarmUp</code> 预热让流量缓慢爬升，并在线上用灰度实例持续校准，避免扩容或代码变更后阈值失真。</p>
+<p class="li">降级返回要分级设计：查询类可返回缓存快照、空集合或默认值，写操作则要明确拒绝并带可识别的降级标识，绝不能静默返回成功造成数据错觉；兜底逻辑必须无远程依赖、无锁竞争且路径极短，防止降级本身成为新瓶颈。对写请求要保证幂等，用业务唯一号或 <code>Token</code> 做去重，配合 <code>fallback</code> 里记录待补偿日志，让恢复后能对账重放，避免重试与降级叠加引发重复扣款或重复下单。</p>
+<p class="li"><b>核心考察点</b>：考察容量压测拐点与集群阈值换算、降级分级返回与降级标识，以及兜底幂等和补偿对账的生产约束。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod6">
+<h2>模块六：配置中心与 Bus <button class="spk" onclick="speakModule(6)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody6">
+<h3 id="mod6-config">A. Spring Cloud Config Server（中级）</h3>
+<div class="q" id="m6q1">
+<button class="spk spkq" onclick="speakId('m6q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Config Server 的架构如何，支持哪些后端存储，客户端怎样拉取配置？</b></div>
+<p class="li"><b>参考答案</b>：Config Server 是独立的配置服务，对外暴露按应用名、环境与分支组织的 REST 端点，后端通过 <code>EnvironmentRepository</code> 抽象接入，最常用 Git，天然带版本与审计，也支持 Vault 存密文、JDBC 存数据库和本地文件系统。服务端用 <code>@EnableConfigServer</code> 启用。</p>
+<p class="li">客户端在 bootstrap 阶段向 Server 发请求，携带 <code>spring.application.name</code>、<code>spring.profiles.active</code> 和 <code>label</code>，Server 合并公共配置、应用专属配置与 profile 覆盖后返回 <code>Environment</code>，客户端把远端属性以高优先级写入并注入 Bean。</p>
+<p class="li"><b>核心考察点</b>：考察 EnvironmentRepository 抽象、Git 与 Vault 等后端差异，以及客户端 bootstrap 阶段拉取与属性合并流程。</p>
+</div>
+</div>
+<div class="q" id="m6q2">
+<button class="spk spkq" onclick="speakId('m6q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>bootstrap.yml 的作用是什么，2020.0.x 后为何默认不再启用？</b></div>
+<p class="li"><b>参考答案</b>：bootstrap 上下文是主应用 <code>ApplicationContext</code> 的父容器，由 <code>BootstrapApplicationListener</code> 在启动最早阶段创建，专门加载 <code>bootstrap.yml</code> 中的引导期属性：配置中心地址、应用名、<code>profile</code>、加密密钥和连接凭证。它先于主容器完成远端拉取。</p>
+<p class="li">从 <code>Spring Cloud 2020.0.x</code> 配合 <code>Spring Boot 2.4</code> 起，默认不再启用 bootstrap 上下文，改用 <code>spring.config.import</code> 的 Config Data 机制，例如加 <code>configserver:</code> 导入远端。若保留旧行为。</p>
+<p class="li"><b>核心考察点</b>：考察 bootstrap 父容器的加载时机与高优先级语义，以及 2020.0.x 后 Config Data 导入与 starter 兼容开关。</p>
+<p class="li"><b>面试追问</b>：升级到 2020.0.x 后如果仍用 bootstrap.yml 却读不到远端配置，排查思路是什么？请结合依赖缺失与 import 缺失两种成因说明，并给出最小改造方式。</p>
+</div>
+</div>
+<div class="q" id="m6q3">
+<button class="spk spkq" onclick="speakId('m6q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Config Server 的配置加解密如何工作，对称与非对称方式及占位符如何使用？</b></div>
+<p class="li"><b>参考答案</b>：服务端借助 <code>TextEncryptor</code> 实现密文托管：对称方式配置 <code>encrypt.key</code> 指定密钥，简单但密钥分发有泄露风险；非对称方式用 <code>encrypt.keyStore.location</code>、<code>password</code>、<code>alias</code> 指向 <code>JKS</code> 密钥库，私钥留服务端解密、公钥给客户端加密，安全性更高。</p>
+<p class="li">密文以 <code>{cipher}</code> 前缀加加密串写入配置，Server 返回时自动解密成明文，客户端无需感知密钥。运维通过 <code>/encrypt</code> 与 <code>/decrypt</code> 端点验证，注意用 POST 并做鉴权，避免解密能力外泄。生产把 Git 密文、密钥库和 <code>encrypt.key</code> 纳入权限体系，配合 Vault 集中托管，并收敛不必要的 <code>/encrypt</code> 暴露面。</p>
+<p class="li"><b>核心考察点</b>：考察 encrypt.key 对称与 JKS 非对称加密、cipher 占位符解密时机，以及加密端点鉴权与密钥纳管。</p>
+</div>
+</div>
+<h3 id="mod6-nacos">B. Nacos Config 动态刷新（高级）</h3>
+<div class="q" id="m6q4">
+<button class="spk spkq" onclick="speakId('m6q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos 的 dataId、group、namespace 如何划分，配置优先级怎样？</b></div>
+<p class="li"><b>参考答案</b>：三者隔离层级由粗到细：<code>namespace</code> 用于租户或环境隔离，例如 dev 与 prod，不同命名空间互不可见；<code>group</code> 按业务或应用分组，默认 <code>DEFAULT_GROUP</code>；<code>dataId</code> 定位具体文件，默认按 <code>prefix</code> 加激活 <code>profile</code> 加 <code>file-extension</code> 拼成。</p>
+<p class="li">除主配置外，<code>shared-configs</code> 放多应用共用的中间件配置，<code>extension-configs</code> 放应用专属扩展配置，二者都支持 <code>data-id</code>、<code>group</code> 和 <code>refresh</code> 开关。优先级上，带 profile 覆盖不带 profile，同类数组内后声明覆盖先声明，一般主配置高于扩展与共享。</p>
+<p class="li"><b>核心考察点</b>：考察 namespace 与 group 的隔离粒度、dataId 拼接规则，以及共享、扩展、主配置的覆盖顺序与 refresh 粒度控制。</p>
+</div>
+</div>
+<div class="q" id="m6q5">
+<button class="spk spkq" onclick="speakId('m6q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>动态刷新注解 @RefreshScope 的原理是什么，哪些场景下配置刷新会失效？</b></div>
+<p class="li"><b>参考答案</b>：<code>@RefreshScope</code> 是 <code>Spring Cloud</code> 自定义的 <code>Scope</code>，不直接改字段，而是为 Bean 生成代理并缓存实例。收到 <code>EnvironmentChangeEvent</code> 或调用 <code>/actuator/refresh</code> 时，<code>RefreshScope.refreshAll</code> 清空缓存、销毁旧实例。</p>
+<p class="li">失效场景有几类：<code>final</code> 字段或构造期固化到常量的值无法重绑，<code>static</code> 静态字段不属于 Bean 生命周期、刷新不到，被 <code>HikariCP</code>、<code>Druid</code> 等连接池在启动时读取一次的参数也不会随刷新重建，除非销毁并重建数据源。用 <code>@RefreshScope</code> 包裹有状态 Bean 还会丢失内存状态。生产应把动态参数收敛到独立配置类。</p>
+<p class="li"><b>核心考察点</b>：考察代理加缓存销毁重建的刷新机制、Value 与 ConfigurationProperties 差异，以及 final、静态字段与连接池失效场景。</p>
+<p class="li"><b>面试追问</b>：若某个 Druid 数据源的最大连接数需要动态调整，光加 @RefreshScope 不够，应该怎么改造才能在刷新后真正生效？请说明监听刷新事件重建 Bean 的做法，并指出直接改运行时对象为何不可靠。</p>
+</div>
+</div>
+<div class="q" id="m6q6">
+<button class="spk spkq" onclick="speakId('m6q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos Config 的长轮询机制如何工作，配置灰度发布与版本回滚该怎么做？</b></div>
+<p class="li"><b>参考答案</b>：客户端并非频繁短轮询，而是发起带 Long-Pulling 的 HTTP 请求并挂起约 30 秒，服务端用 Servlet 3.0 异步 hold 住连接；期间配置变更立即返回变更的 <code>dataId</code> 与 <code>group</code>，无变更则超时返回空，客户端再发起下一轮。客户端本地有 snapshot 快照，Server 不可用时可降级读本地文件启动。</p>
+<p class="li">灰度依托 <code>group</code> 或 beta 发布能力，先让部分实例 Ip 列表加载新配置，验证无误再全量；控制台保留历史版本与操作审计，回滚时选中历史版本恢复 <code>dataId</code> 内容并触发推送。落地要固化 <code>namespace</code>、<code>group</code>、<code>dataId</code> 命名规范，灰度期结合 <code>refresh</code> 开关与监控观察错误率，回滚后确认各实例 <code>MD5</code> 一致。</p>
+<p class="li"><b>核心考察点</b>：考察长轮询挂起与 MD5 比对、本地快照降级，以及基于 beta 灰度、历史版本回滚与实例一致性验证。</p>
+</div>
+</div>
+<h3 id="mod6-bus">C. Bus、选型与生产坑（进阶）</h3>
+<div class="q" id="m6q7">
+<button class="spk spkq" onclick="speakId('m6q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud Bus 如何工作，busrefresh 端点怎样做定向刷新？</b></div>
+<p class="li"><b>参考答案</b>：Bus 用消息中间件把各实例连成轻量总线，默认支持 <code>RabbitMQ</code> 与 <code>Kafka</code>，通过 <code>spring-cloud-starter-bus-amqp</code> 等接入。它在每个应用建独立 <code>Exchange</code> 与队列并绑定，配置变更时把 <code>RefreshRemoteApplicationEvent</code> 广播出去。</p>
+<p class="li">触发端点是 <code>/actuator/busrefresh</code>，旧版 <code>/bus/refresh</code> 已废弃，需暴露 <code>busrefresh</code> 与 <code>refresh</code> 端点并用 POST 调用。默认广播给所有实例，可用 <code>destination</code> 参数定向，例如按服务名加端口或服务名加双星通配只刷某类实例，配合 <code>spring.cloud.bus.id</code> 标识节点。</p>
+<p class="li"><b>核心考察点</b>：考察 Bus 基于消息中间件广播刷新事件的机制、busrefresh 端点与 destination 定向语法，以及旧端点变更。</p>
+</div>
+</div>
+<div class="q" id="m6q8">
+<button class="spk spkq" onclick="speakId('m6q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Config Server 结合 Bus 实现全量刷新时，刷新执行者与作用域注解如何配合？</b></div>
+<p class="li"><b>参考答案</b>：典型链路是：改 Git 配置后调用 Config Server 的 <code>/actuator/busrefresh</code>，Server 经 Bus 广播 <code>RefreshRemoteApplicationEvent</code>，各 Config Client 收到后由 <code>ContextRefresher.refresh</code> 重新拉取 <code>Environment</code>。</p>
+<p class="li"><code>ContextRefresher</code> 是刷新执行者，负责重建 <code>Environment</code>、比对差异并发出事件；<code>@RefreshScope</code> 是被刷新对象的标记，决定哪些 Bean 走代理重建。只有加了 <code>@RefreshScope</code> 或本身是 <code>@ConfigurationProperties</code> 的 Bean 才会重绑。</p>
+<p class="li"><b>核心考察点</b>：考察 Git 到 Bus 事件到 ContextRefresher 到 RefreshScope 的刷新链路，以及执行者与刷新标记的职责边界。</p>
+</div>
+</div>
+<div class="q" id="m6q9">
+<button class="spk spkq" onclick="speakId('m6q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Nacos Config 与 Config Server 在选型上该如何对比取舍？</b></div>
+<p class="li"><b>参考答案</b>：定位不同：Config Server 是纯配置服务，配置存 Git、Vault 或 JDBC，天然带版本与审计，但动态刷新必须额外搭 <code>Spring Cloud Bus</code> 和消息中间件，组件多、链路长；Nacos Config 把存储、长轮询推送、灰度回滚、鉴权都内置，客户端秒级感知，无需 Bus，运维面更小。前者与 <code>Spring Cloud</code> 生态同源。</p>
+<p class="li">选型看几个维度：若已重度使用 Git 工作流、需要强审计合规或跨语言统一配置，Config Server 更顺；若追求开箱即用的动态刷新、灰度回滚并希望少维护一套 MQ，Nacos 更合适。还要评估注册中心是否统一、多环境隔离与运维熟悉度。很多团队让 Nacos 同时承担注册与配置，但要把配置变更纳入发布流程与权限管控，避免随意改动引发波动。</p>
+<p class="li"><b>核心考察点</b>：考察两者在存储后端、刷新是否依赖 Bus、灰度回滚与运维复杂度上的差异，以及按团队栈选型的判断维度。</p>
+</div>
+</div>
+<div class="q" id="m6q10">
+<button class="spk spkq" onclick="speakId('m6q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>配置中心有哪些常见生产坑，配置不生效、本地覆盖远端、敏感配置泄露与权限该如何治理？</b></div>
+<p class="li"><b>参考答案</b>：配置不生效常见根因有：<code>dataId</code> 与 <code>group</code> 或 <code>namespace</code> 拼错、<code>file-extension</code> 与格式不符、漏了 <code>spring.config.import</code> 或 <code>spring-cloud-starter-bootstrap</code>、改动项没加 <code>@RefreshScope</code>，以及 <code>final</code> 或静态字段无法重绑。</p>
+<p class="li">治理上固化优先级规范：远端高于本地，本地只留引导期必需项，禁止用命令行参数兜底业务配置。敏感信息不落明文，走 <code>Vault</code>、<code>JKS</code> 加密或 <code>{cipher}</code> 占位，按 <code>namespace</code> 做读写权限分级、开启审计与变更审批，密钥轮换纳入流程。生产还要给变更加灰度与回滚窗口，监控对比各实例 <code>MD5</code>，防止误改或泄露引发大面积故障。</p>
+<p class="li"><b>核心考察点</b>：考察配置不生效的定位清单、属性优先级与 allow-override 覆盖坑，以及密文托管、权限分级、审计回滚的治理手段。</p>
+<p class="li"><b>面试追问</b>：如果线上发现部分实例配置值不一致，如何快速定位是加载失败、刷新丢失还是被本地参数覆盖？请给出排查顺序，并说明各阶段该看哪些日志与端点。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod7">
+<h2>模块七：链路追踪与可观测性 <button class="spk" onclick="speakModule(7)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody7">
+<h3 id="mod7-basic">A. Trace、Span 与采样（中级）</h3>
+<div class="q" id="m7q1">
+<button class="spk spkq" onclick="speakId('m7q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Trace、Span、Annotation 各指什么，traceId 和 spanId 如何生成？</b></div>
+<p class="li"><b>参考答案</b>：一次分布式调用建模为一条 Trace，由多个 Span 组成有向无环图。入口根 Span 生成全局唯一的 128 位十六进制 <code>traceId</code>，每个 Span 分配独立 <code>spanId</code>，再用 <code>parentId</code> 指向父节点形成层级。Span 记录操作名、耗时、时间戳和标签。</p>
+<p class="li">上下文由 Brave 或 OpenTelemetry 的 <code>TraceContext</code> 在入口创建，Sleuth 通过 <code>Tracer</code> 派生子 Span，<code>traceId</code> 全程不变而 <code>spanId</code> 逐跳更新，并随 W3C 头透传。Spring Boot 3 换成 Micrometer 的 <code>Span</code> 接口。排障时按 traceId 聚合整条链，按 spanId 定位单跳耗时。</p>
+<p class="li"><b>核心考察点</b>：考察 Trace、Span、Annotation 的数据模型，以及 traceId 根生成与 spanId 父子串联、上下文载体和版本差异。</p>
+</div>
+</div>
+<div class="q" id="m7q2">
+<button class="spk spkq" onclick="speakId('m7q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>链路采样有哪些策略，恒定、概率、速率限制与请求头透传各如何取舍？</b></div>
+<p class="li"><b>参考答案</b>：采样决定一条链路是否完整上报，常见四类：恒定采样由 <code>Sampler.ALWAYS_SAMPLE</code> 或 <code>NEVER_SAMPLE</code> 一刀切；概率采样按 <code>spring.sleuth.sampler.probability</code> 默认 0.1 抽十分之一；速率限制用每秒上报条数上限压制突发流量；请求头透传则由上游 sampled 标志驱动，下游用父级继承决策。</p>
+<p class="li">Brave 里由计数与限速两类 Sampler 实现，Boot 3 的 Micrometer 桥接用 <code>Sampler</code> 把采样概率收敛到 <code>management.tracing.sampling.probability</code>，并用父级继承保证链路一致。这些都是入口处的头部采样，错误链路可能漏采；生产常叠加尾部采样。<code>tail_sampling</code> 按延迟和错误码保留错误链路。</p>
+<p class="li"><b>核心考察点</b>：考察恒定、概率、速率限制与父级透传采样的实现与配置，以及头部采样和尾部采样的取舍对链路完整性的影响。</p>
+<p class="li"><b>面试追问</b>：若上游已采样而下游单独配了更低的采样概率，链路会出现什么现象？生产上如何用父级继承保证链路完整，同时叠加尾部采样对错误链路兜底？</p>
+</div>
+</div>
+<div class="q" id="m7q3">
+<button class="spk spkq" onclick="speakId('m7q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>W3C TraceContext 与 B3 如何把 trace 上下文透传到 HTTP 和消息头？</b></div>
+<p class="li"><b>参考答案</b>：传播本质是把 <code>TraceContext</code> 序列化进请求头。W3C TraceContext 用单个 <code>traceparent</code> 头承载版本、traceId、父 spanId 和采样标志，另用 tracestate 携带厂商扩展；B3 则分单头与多头两种形态，多头含 <code>X-B3-TraceId</code>、<code>X-B3-SpanId</code> 与是否采样的标记。</p>
+<p class="li">Sleuth 默认 B3，可用 <code>spring.sleuth.propagation.type</code> 切成 W3C 或 <code>B3,W3C</code> 双读兼容，Boot 3 则交给 OpenTelemetry 的 <code>TextMapPropagator</code> 统一处理。HTTP 侧由 <code>RestTemplate</code> 拦截器自动注入。消息侧靠 Kafka 与 Rabbit 的 header 透传。</p>
+<p class="li"><b>核心考察点</b>：考察 W3C TraceContext 与 B3 的报文格式、传播配置，以及 HTTP 拦截器和消息头在跨服务透传中的落地。</p>
+</div>
+</div>
+<h3 id="mod7-stack">B. 技术栈与迁移（高级）</h3>
+<div class="q" id="m7q4">
+<button class="spk spkq" onclick="speakId('m7q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Sleuth 与 Zipkin 各自承担什么职责，span 有哪些上报方式又落到哪些存储？</b></div>
+<p class="li"><b>参考答案</b>：Sleuth 只负责埋点与上下文传播，它通过 Brave 的 <code>Tracer</code> 生成 Span，再由 <code>AsyncReporter</code> 批量把 span 发给名为 Reporter 的通道；Zipkin 服务端分 collector、storage、query 与 UI 四层，collector 校验并写入 <code>StorageComponent</code>。两者解耦，业务应用不直接连数据库。</p>
+<p class="li">上报方式由 <code>spring.zipkin.sender.type</code> 决定：web 走 HTTP 打到默认 9411 端口，Kafka 与 Rabbit 经消息队列削峰，适合高吞吐。存储可选内存、MySQL、Cassandra 或 Elasticsearch，生产多用 ES 并配 <code>zipkin-dependencies</code> 离线生成依赖图。</p>
+<p class="li"><b>核心考察点</b>：考察 Sleuth 埋点与 Zipkin 收集、存储、查询的分工，HTTP 与 Kafka 上报通道以及 Elasticsearch 等存储选型。</p>
+</div>
+</div>
+<div class="q" id="m7q5">
+<button class="spk spkq" onclick="speakId('m7q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>SkyWalking 探针如何做到无侵入埋点，它和 Zipkin 在架构与能力上有何差别？</b></div>
+<p class="li"><b>参考答案</b>：SkyWalking 的 Java Agent 在 <code>premain</code> 阶段借 <code>Instrumentation</code> 与 Byte Buddy 做字节码增强，对 Spring MVC、Dubbo、HttpClient、JDBC 等框架自动插桩，生成 EntrySpan、ExitSpan 与 LocalSpan，再经 gRPC 上报到 OAP。<code>agent.config</code> 指定服务名即可接入。</p>
+<p class="li">对比 Zipkin 与 Sleuth，后者必须引入 starter、由应用显式埋点并管理传播，而 SkyWalking 天然无侵入且自带服务拓扑、实例与端点指标、慢 SQL、JVM 监控以及告警引擎，存储支持 ES、H2 与 MySQL。代价是 Agent 升级与字节码兼容风险、启动期插桩开销，深度定制不如代码埋点灵活。</p>
+<p class="li"><b>核心考察点</b>：考察 Java Agent 字节码增强原理、无侵入优势，以及 SkyWalking 在拓扑、指标、告警上与 Zipkin 的能力对比。</p>
+<p class="li"><b>面试追问</b>：容器化环境里 Java Agent 的字节码增强对启动耗时和常驻 CPU 有多大影响？如何只开启必要插件、用采样和异步上报压低开销并量化评估收益？</p>
+</div>
+</div>
+<div class="q" id="m7q6">
+<button class="spk spkq" onclick="speakId('m7q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Sleuth 停更后如何迁移到 Micrometer Tracing 与 OTel 桥接？</b></div>
+<p class="li"><b>参考答案</b>：Sleuth 最后维护在 3.1，Spring Boot 3 与 Spring Cloud 2022 起官方把追踪能力独立为 Micrometer Tracing，Sleuth 停止演进。API 从 Sleuth 的 <code>Tracer</code>、<code>Span</code> 换成 <code>io.micrometer.tracing</code> 包下同名接口。</p>
+<p class="li">配置前缀整体迁移：采样概率由 <code>spring.sleuth.sampler.probability</code> 收敛到 <code>management.tracing.sampling.probability</code>，Zipkin 地址与 OTLP 上报端点也改到 management 命名空间下。传播默认走 W3C，可用传播类型配置兼容老 B3。日志 MDC 仍自动注入 traceId。</p>
+<p class="li"><b>核心考察点</b>：考察 Sleuth 停更背景、Micrometer Tracing 与 OpenTelemetry 桥接、包名与配置的迁移映射以及自定义埋点改造。</p>
+</div>
+</div>
+<div class="q" id="m7q7">
+<button class="spk spkq" onclick="speakId('m7q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>日志里如何注入 traceId，又怎样把日志与调用链关联起来定位一次请求？</b></div>
+<p class="li"><b>参考答案</b>：Sleuth 借 Brave 的 <code>CurrentTraceContext</code> 与 <code>Slf4JScopeDecorator</code> 在进入 Span 作用域时把 <code>traceId</code>、<code>spanId</code> 写进 MDC，退出时清理，logback 用 <code>%X{traceId}</code> 或默认的 app、traceId、spanId 三元组格式打印到每行日志。</p>
+<p class="li">排查时先用请求特征或网关日志拿到 traceId，在 ELK 里一次聚合出该请求跨服务的全部日志，看异常栈与业务参数；再进 Zipkin 或 SkyWalking 按同一 traceId 打开链路，对照 span 耗时与 error 标签区分是网络、排队还是慢 SQL。异步线程不继承 MDC，需用 <code>TaskDecorator</code> 复制上下文。订单号等键与 traceId 一并打印便于反查。</p>
+<p class="li"><b>核心考察点</b>：考察 MDC 注入 traceId 的实现、日志格式配置、异步场景继承问题与日志链路联动排障的完整思路。</p>
+</div>
+</div>
+<h3 id="mod7-debug">C. 上下文丢失与排障（进阶）</h3>
+<div class="q" id="m7q8">
+<button class="spk spkq" onclick="speakId('m7q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>异步线程、线程池、定时任务和 MQ 消费为何丢失 traceId，分别怎么修复？</b></div>
+<p class="li"><b>参考答案</b>：根因是 trace 上下文存在 <code>ThreadLocal</code> 里，<code>@Async</code>、线程池与 MQ 监听线程默认读不到，于是子任务另起 trace 或彻底丢失。修复思路是提交任务时携带当前上下文快照：Sleuth 用 <code>LazyTraceExecutor</code>，Boot 3 用 <code>ContextPropagatingTaskDecorator</code> 包装执行器。</p>
+<p class="li">定时任务没有上游入口，通常用 <code>Tracer</code> 显式开一条新 trace 并配合分布式锁避免重复执行。MQ 场景要双向透传：生产端把 <code>traceparent</code> 写进消息头，Kafka 需放行自定义头，消费端用 <code>RecordInterceptor</code> 或 Rabbit 的消息后处理器提取并恢复上下文；否则链路在 broker 处断裂。改造后务必用日志里的 traceId 验证父子关系。</p>
+<p class="li"><b>核心考察点</b>：考察 ThreadLocal 上下文丢失根因，TaskDecorator、包装 Executor 与消息头透传在异步和 MQ 场景的修复方案。</p>
+<p class="li"><b>面试追问</b>：业务同时用 WebFlux 与传统线程池时，Reactor 上下文和 trace 上下文如何对齐？改造后怎样验证子线程确实继承父 span，而不是另起一条新链？</p>
+</div>
+</div>
+<div class="q" id="m7q9">
+<button class="spk spkq" onclick="speakId('m7q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>怎样借调用链定位慢调用，采样率与上报数据量又该如何调优？</b></div>
+<p class="li"><b>参考答案</b>：定位慢调用先在 Zipkin 或 SkyWalking 按 duration 倒序找最耗时 span，看客户端与服务端四个时间点拆出网络、排队、服务处理和 DB 耗时，再下钻 <code>db.statement</code>、<code>error</code> 与状态码标签。可借 <code>BaggageField</code> 带上用户或租户维度过滤干扰流量，区分是个别请求偶发还是某实例整体劣化。</p>
+<p class="li">调优分三层：入口降低采样概率，给高 QPS 服务再叠加速率上限；对错误和慢请求用 OTel Collector 的 <code>tail_sampling</code> 按延迟与状态码做后置保留，弥补头部采样漏采。上报用 <code>BatchSpanProcessor</code> 批量发送并调队列与批大小；存储侧按天滚动索引、配 ES 的 ILM 冷热分层与保留期。同时限制标签和 baggage 数量，避免单条 span 过大。</p>
+<p class="li"><b>核心考察点</b>：考察按耗时下钻 span 定位瓶颈的方法，概率、速率与尾部采样调优以及批量上报和存储索引优化。</p>
+</div>
+</div>
+<div class="q" id="m7q10">
+<button class="spk spkq" onclick="speakId('m7q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>生产上链路数据膨胀与存储成本如何控制，采样策略怎样和告警联动？</b></div>
+<p class="li"><b>参考答案</b>：膨胀来自全量采样叠加大流量长链路，以及把大报文塞进标签或滥用 baggage。治理先做分层采样：入口按 <code>management.tracing.sampling.probability</code> 降到个位数百分比，用 <code>ParentBasedSampler</code> 保证整链一致，对错误和超阈值慢请求强制全采；再限制 baggage 字段数与长度。</p>
+<p class="li">存储降本靠 ES 按天或服务建索引、ILM 热温冷加删除阶段只留七到十四天，明细转对象存储归档，并用 <code>zipkin-dependencies</code> 离线聚合依赖图减轻查询压力；上报链路经 Kafka 削峰配合批量处理器。告警联动把追踪派生出 P99 延迟、错误率与慢调用数导入 Prometheus，规则命中时把 traceId 写进告警消息直达链路。同时用抑制规则避免采样抖动引发误报。</p>
+<p class="li"><b>核心考察点</b>：考察链路数据膨胀治理、分层采样、ES 生命周期与对象存储降本，以及派生指标驱动告警的工程方案。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod8">
+<h2>模块八：Stream 与 Seata <button class="spk" onclick="speakModule(8)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody8">
+<h3 id="mod8-stream">A. Spring Cloud Stream（中级）</h3>
+<div class="q" id="m8q1">
+<button class="spk spkq" onclick="speakId('m8q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud Stream 的 Binder 与 Binding 如何解耦消息中间件？</b></div>
+<p class="li"><b>参考答案</b>：Spring Cloud Stream 用 <code>Binder</code> 把应用和中间件隔离：应用只面向 <code>MessageChannel</code> 与统一的消息头模型，由 <code>KafkaMessageChannelBinder</code> 或 Rabbit 版本负责真正收发。<code>Binding</code> 描述通道绑定到哪个 destination 和消费组，配置放在 bindings 命名空间下。</p>
+<p class="li">代价是中间件高级能力必须下沉到 binder 专属配置，例如 Kafka 事务、死信与分区参数都在 <code>spring.cloud.stream.kafka.binder</code> 下，抽象层不保证跨中间件等价，选型时要评估这些特性是否被屏蔽。<code>BindingService</code> 管理绑定生命周期。3.x 起 <code>@EnableBinding</code> 与 Source、Sink 接口被函数式取代。</p>
+<p class="li"><b>核心考察点</b>：考察 Binder、Binding、MessageChannel 的分层抽象，切换中间件的配置代价与 Binder 专属属性的边界。</p>
+</div>
+</div>
+<div class="q" id="m8q2">
+<button class="spk spkq" onclick="speakId('m8q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>消费组与分区分别保证什么语义，各自适合哪些业务场景？</b></div>
+<p class="li"><b>参考答案</b>：消费组由 <code>spring.cloud.stream.bindings</code> 下的 <code>group</code> 定义，同组多实例竞争分区，一条消息只被组内一个实例消费，Kafka 靠 consumer group rebalance、Rabbit 靠共享队列实现；不同组各自拿到全量副本，天然形成发布订阅广播。不配 group 会生成匿名临时订阅，重启即丢且易漏消息。生产必须显式命名。</p>
+<p class="li">分区用 <code>partitionKeyExpression</code> 或 <code>partitionKeyExtractorName</code> 提取业务键，配合 <code>partitionCount</code> 让同键落到同一分区，从而保证局部有序并降低并发写冲突。适合订单按 orderId 保序、库存按 SKU 串行扣减。</p>
+<p class="li"><b>核心考察点</b>：考察消费组组内单次消费与组间广播语义、分区保序原理、扩容 rebalance 与热点键倾斜问题。</p>
+</div>
+</div>
+<div class="q" id="m8q3">
+<button class="spk spkq" onclick="speakId('m8q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>函数式模型的 Supplier、Function、Consumer 相比旧注解式有哪些变化？</b></div>
+<p class="li"><b>参考答案</b>：3.x 起推荐函数式模型：<code>Supplier</code>、<code>Function</code>、<code>Consumer</code> 声明成 bean，框架按 <code>spring.cloud.stream.function.definition</code> 自动推导绑定，命名是函数名加 in 或 out 加序号，多函数用分号串联。</p>
+<p class="li">函数式天然支持 <code>Function</code> 组合、<code>Flux</code> 响应式流与多输入输出，动态发送改用 <code>StreamBridge</code> 取代过去注入输出通道的做法，绑定名也可显式覆盖。测试侧用 <code>FunctionCatalog</code> 直接调用 bean、配合测试 binder 收发消息，无需拉起真实 Kafka；响应式场景要注意背压与手动确认的配合。以免函数式链路丢失提交语义或重复消费。</p>
+<p class="li"><b>核心考察点</b>：考察函数式定义与绑定命名规则、注解式废弃演进、StreamBridge 与 Flux 响应式支持及迁移要点。</p>
+<p class="li"><b>面试追问</b>：现网仍用注解式的老服务如何在不停机前提下平滑切到函数式定义？绑定名与 destination 怎样保持一致，灰度期间新旧消费者如何共存而不重复消费？</p>
+</div>
+</div>
+<div class="q" id="m8q4">
+<button class="spk spkq" onclick="speakId('m8q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>死信队列和重试策略如何配置，消费端幂等为什么不能只靠 DLQ？</b></div>
+<p class="li"><b>参考答案</b>：消费抛异常后 binder 按 <code>maxAttempts</code>（默认三次）、<code>backOffInitialInterval</code> 与 <code>backOffMultiplier</code> 做指数退避重试，仍失败才投递死信队列：Kafka 开 <code>enableDlq</code> 生成带组名和主题后缀的 DLQ 主题，Rabbit 用 <code>autoBindDlq</code> 绑定死信交换器。批量消费下重试语义与单条不同，要单独评估确认模式。</p>
+<p class="li">DLQ 只兜底不解决重复：网络重试或手动补偿都可能让同一消息再来一次，幂等必须在业务层做。常用唯一键去重表或 Redis <code>SETNX</code>，配合数据库唯一索引与乐观锁 version 字段；<code>Consumer</code> 在业务成功后才提交偏移量，避免先确认后处理造成丢失。DLQ 要配监控与人工补偿入口，保留原始消息头与 <code>traceId</code>，便于按链路回溯失败上下文。</p>
+<p class="li"><b>核心考察点</b>：考察重试与退避参数、DLQ 投递条件、手动确认语义，以及唯一键去重表与乐观锁实现幂等。</p>
+</div>
+</div>
+<h3 id="mod8-seata">B. Seata 分布式事务（高级）</h3>
+<div class="q" id="m8q5">
+<button class="spk spkq" onclick="speakId('m8q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Seata 的 TC、TM、RM 各司何职，AT 模式两阶段具体怎么走？</b></div>
+<p class="li"><b>参考答案</b>：Seata 三角色：TC 是独立 <code>seata-server</code>，维护全局事务与分支状态；TM 嵌在业务入口，用 <code>@GlobalTransactional</code> 开启、提交或回滚全局事务；RM 在各服务代理 <code>DataSourceProxy</code>，注册分支并上报。AT 一阶段由 RM 拦截业务 SQL，解析前后镜像写入 <code>undo_log</code>。与业务 SQL 同事务提交后立即释放本地锁并申请全局锁。</p>
+<p class="li">二阶段由 TC 异步下发：全局提交时各分支仅异步删除 <code>undo_log</code>，几乎无开销；全局回滚时按前镜像生成反向 SQL 补偿，并用后镜像做脏写校验。<code>xid</code> 经 <code>RootContext</code> 在 RPC 与 HTTP 调用中透传，<code>seata.tx-service-group</code> 映射到 TC 集群。相比 XA，AT 一阶段就提交、不长期持数据库锁。</p>
+<p class="li"><b>核心考察点</b>：考察 TC、TM、RM 职责划分、AT 一阶段 undo_log 与本地事务、二阶段异步提交或回滚补偿全流程。</p>
+</div>
+</div>
+<div class="q" id="m8q6">
+<button class="spk spkq" onclick="speakId('m8q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>AT 模式的 undo_log 与全局锁怎样工作，脏写和脏读问题如何解决？</b></div>
+<p class="li"><b>参考答案</b>：<code>undo_log</code> 表含 xid、branch_id、<code>rollback_info</code>（前后镜像序列化）、log_status 等字段，由 RM 的 <code>UndoLogManager</code> 一阶段写入、二阶段删除或用于反向补偿。全局锁由 TC 在 <code>lock_table</code> 中以资源标识加主键作 row_key 维护：AT 一阶段提交前必须拿到全局锁。</p>
+<p class="li">AT 默认本地读未提交，另一个事务可能读到中间态即脏读；要求读已提交时可用 <code>SELECT FOR UPDATE</code> 让代理走全局锁等待，或加 <code>@GlobalLock</code> 校验，代价是吞吐下降。生产要给 <code>undo_log</code> 建唯一索引并定期清理历史、避免长事务长期持全局锁、把热点行更新拆队，并关注 <code>LockConflict</code> 与全局锁超时。二阶段回滚还要校验后镜像，数据被改过需转人工。</p>
+<p class="li"><b>核心考察点</b>：考察 undo_log 结构、全局锁防脏写机制、读未提交导致的脏读与 SELECT FOR UPDATE 及全局锁方案。</p>
+<p class="li"><b>面试追问</b>：高并发下同一行频繁抛 LockConflict 该调哪些参数？改用 SELECT FOR UPDATE 后吞吐明显下降，还有哪些替代隔离思路能兼顾正确性与吞吐？</p>
+</div>
+</div>
+<div class="q" id="m8q7">
+<button class="spk spkq" onclick="speakId('m8q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>TCC 的 Try、Confirm、Cancel 是什么，空回滚、悬挂与幂等怎么处理？</b></div>
+<p class="li"><b>参考答案</b>：TCC 由业务实现三段：<code>Try</code> 预留资源（如冻结库存）、<code>Confirm</code> 真正扣减且必须幂等、<code>Cancel</code> 释放预留。Seata 用 <code>@TwoPhaseBusinessAction</code> 声明 name、commitMethod、rollbackMethod，参数经 <code>BusinessActionContext</code> 在二阶段回传。</p>
+<p class="li">三大坑需显式防：空回滚是 Try 因超时未执行却收到 Cancel，要靠独立事务记录表判断并插入已回滚标记；悬挂是 Cancel 先到、迟到的 Try 必须查到标记后直接返回，不再预留；幂等是 Confirm 与 Cancel 可能被 TC 重试，用 xid 加 branchId 唯一键或状态机去重。工程上可为 <code>TccAction</code> 接口建状态表。该表记录三态并配 TC 重试上限。</p>
+<p class="li"><b>核心考察点</b>：考察 TCC 三方法语义与 BusinessActionContext，空回滚、悬挂、幂等的成因和事务记录表解法。</p>
+</div>
+</div>
+<div class="q" id="m8q8">
+<button class="spk spkq" onclick="speakId('m8q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>SAGA 与 XA 各自原理是什么，分别适合什么样的业务场景？</b></div>
+<p class="li"><b>参考答案</b>：SAGA 把长事务拆成一串本地事务，每个正向操作配一个补偿操作，失败时逆序调用补偿回滚；Seata SAGA 用 <code>StateMachineEngine</code> 加 JSON 状态图编排，支持异步、可重试与子流程，适合跨多服务、耗时久、无法长期持锁的场景，如旅游订票与供应链流转。它只有最终一致、缺乏隔离性，补偿必须幂等且要处理补偿本身失败。</p>
+<p class="li">XA 基于数据库的 <code>XAResource</code> 两阶段：prepare 阶段各分支预提交并一直持锁，TM 统一 commit 或 rollback，强一致但全程锁资源、吞吐低，还依赖数据库 XA 支持，Seata XA 由 <code>DataSourceProxyXA</code> 代理。选型上短事务且要强一致用 XA 或 AT，核心资金高并发用 TCC 控粒度。长流程跨异构系统用 SAGA。</p>
+<p class="li"><b>核心考察点</b>：考察 SAGA 状态机与补偿、XA 两阶段持锁的强一致代价，以及按事务时长和一致性要求的选型。</p>
+</div>
+</div>
+<div class="q" id="m8q9">
+<button class="spk spkq" onclick="speakId('m8q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>TC 如何做高可用，事务分组怎么配，跨服务事务异常又如何排查？</b></div>
+<p class="li"><b>参考答案</b>：TC 高可用靠三件事：多个 <code>seata-server</code> 组成集群，用 <code>service.vgroupMapping</code> 把事务分组映射到集群名，借 Nacos 或 Redis 等注册中心做服务发现，再以共享库存储 <code>global_table</code>、分支表与锁表保证多节点状态一致，生产禁用 file 模式。客户端事务分组必须与服务端映射一致。</p>
+<p class="li">跨服务异常排查先看 <code>xid</code> 有没有透传：入口打印 <code>RootContext.getXID()</code>，下游日志比对同一个 xid，缺失通常是 RPC 拦截器或网关未透传。再查 TC 里全局事务状态、分支是否注册齐全、<code>undo_log</code> 是否残留未清。常见故障有抢锁 <code>LockConflict</code>、入口漏加 <code>@GlobalTransactional</code> 导致下游已提交。</p>
+<p class="li"><b>核心考察点</b>：考察 TC 集群的事务分组、注册中心与共享存储，xid 透传与全局表排障及常见超时锁冲突。</p>
+</div>
+</div>
+<h3 id="mod8-choice">C. 分布式事务选型（进阶）</h3>
+<div class="q" id="m8q10">
+<button class="spk spkq" onclick="speakId('m8q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>本地消息表、事务消息、Seata 各模式与 SAGA 之间如何权衡并最终一致？</b></div>
+<p class="li"><b>参考答案</b>：选型看一致性、性能、侵入与运维四维度：本地消息表把业务和消息落同一库事务，后台轮询投递，简单可靠但耦合库表且有延迟；RocketMQ 事务消息由 <code>TransactionMQProducer</code> 发半消息、执行本地事务再由 broker 回查，吞吐高但绑定中间件。Seata AT 零侵入、一阶段即释放锁，适合短事务；TCC 侵入大却无全局锁，适合资金与高并发。SAGA 适合长流程和异构系统。</p>
+<p class="li">最终一致不是放任不一致，而要有配套设计：全链路幂等靠唯一键或状态机，失败可重试加指数退避，定时对账任务扫描悬挂与不一致并触发补偿，消息与事务都要带 <code>traceId</code>、<code>xid</code> 和 <code>messageId</code> 便于串联排查，监控覆盖积压、重试次数与 DLQ 量。还要在业务上划清允许短暂不一致的边界、设置人工兜底入口，并明确补偿失败后的升级路径，避免静默丢数据。</p>
+<p class="li"><b>核心考察点</b>：考察本地消息表、事务消息、AT、TCC、SAGA 的一致性、侵入与运维权衡及最终一致性配套设计。</p>
+<p class="li"><b>面试追问</b>：资金扣减若接受最终一致，TCC 的防悬挂与空回滚记录表该怎么设计？对账发现不一致后应自动补偿还是转人工，这条判断边界依据什么来定？</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod9">
+<h2>模块九：契约测试与版本选型 <button class="spk" onclick="speakModule(9)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody9">
+<h3 id="mod9-contract">A. 消费者驱动契约（中级）</h3>
+<div class="q" id="m9q1">
+<button class="spk spkq" onclick="speakId('m9q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>消费者驱动契约解决了什么问题，与端到端集成测试应如何取舍？</b></div>
+<p class="li"><b>参考答案</b>：消费者驱动契约让消费方先以契约描述对提供方的期望，提供方据此生成验证测试，双方无需同时启动即可独立演进。它把集成验证前移到构建期，避免端到端环境不稳定、部署串行和数据准备昂贵的问题，契约即文档，失败时能精确定位到是消费方期望变化还是提供方实现发生变化。</p>
+<p class="li">取舍上用大量快速的契约测试替代多数端到端用例，仅保留少量覆盖真实网络、鉴权和数据库事务的冒烟级端到端测试。落地时契约放在提供方仓库，由消费方提交变更发起协作，配合 <code>Stub Runner</code> 拉取 stub 做消费方隔离测试，CI 中契约不通过就阻断发布，从流程上防止破坏性变更。</p>
+<p class="li"><b>核心考察点</b>：考察消费者驱动契约解决的核心问题、与端到端集成测试的取舍边界，以及契约先行上下游协作流程的理解。</p>
+</div>
+</div>
+<div class="q" id="m9q2">
+<button class="spk spkq" onclick="speakId('m9q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud Contract 从契约定义到生成测试与 stub 的完整流程是怎样的？</b></div>
+<p class="li"><b>参考答案</b>：契约默认放在生产者 <code>src/test/resources/contracts</code> 下，可用 Groovy DSL 或 YAML 编写，描述请求、响应与匹配规则。<code>spring-cloud-contract-maven-plugin</code> 的 <code>generateTests</code> 目标会解析契约。</p>
+<p class="li">消费方引入 <code>spring-cloud-starter-contract-stub-runner</code>，用 <code>@AutoConfigureStubRunner</code> 声明 <code>ids</code> 与 <code>stubsMode</code>，<code>Stub Runner</code> 从远程仓库或本地 <code>m2</code> 下载 stub 并启动内嵌 WireMock，从而脱离真实提供者运行。</p>
+<p class="li"><b>核心考察点</b>：考察 Spring Cloud Contract 契约定义、插件生成验证测试与 WireMock stub 发布的完整工作流与关键配置。</p>
+<p class="li"><b>面试追问</b>：如果契约改用 YAML 而非 Groovy DSL 编写，插件在匹配规则与动态响应上的表达能力会有哪些差异，多语言团队该如何统一契约规范？</p>
+</div>
+</div>
+<div class="q" id="m9q3">
+<button class="spk spkq" onclick="speakId('m9q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Stub Runner 如何保证契约版本兼容，契约变更时上下游应如何协作？</b></div>
+<p class="li"><b>参考答案</b>：契约版本通常跟随生产者版本，stub jar 以 <code>groupId:artifactId:version:stubs</code> 坐标发布，<code>Stub Runner</code> 通过 <code>ids</code> 精确指定版本或设 <code>stubsMode</code> 为 <code>LOCAL</code> 与 <code>REMOTE</code> 控制来源。</p>
+<p class="li">契约变更遵循向后兼容原则：只新增字段和可选分支，删除或修改字段必须升主版本并双写过渡。协作流程是消费方在生产者仓库提交契约变更与失败测试，生产者补齐实现并通过 <code>generateTests</code> 后发布新 stub，消费方再升级 <code>ids</code>。配合 <code>Stub Runner</code> 的 <code>properties</code> 与契约分支策略，可在灰度期并行验证新旧两版契约。</p>
+<p class="li"><b>核心考察点</b>：考察 Stub Runner 的 stub 坐标与版本锁定方式、契约向后兼容原则及变更协作发布流程。</p>
+</div>
+</div>
+<h3 id="mod9-version">B. 版本矩阵与升级（高级）</h3>
+<div class="q" id="m9q4">
+<button class="spk spkq" onclick="speakId('m9q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Boot、Cloud 与 Spring Cloud Alibaba 版本兼容矩阵如何查？</b></div>
+<p class="li"><b>参考答案</b>：版本矩阵以 Spring Cloud 官方 <code>spring-cloud-dependencies</code> 的发布说明与 Spring Cloud Alibaba 仓库 README 的版本对应表为准，三者是 Boot、Cloud、SCA 的强绑定关系，必须整体升级。例如 Hoxton.SR3 对应 SCA 2.2.x 系列，底层对齐 Boot 2.2 或 2.3。</p>
+<p class="li">排查时先看 <code>spring-cloud-dependencies</code> 导入的 BOM，再用 <code>mvn dependency:tree</code> 核对实际解析版本，重点检查 <code>spring-cloud-commons</code>、<code>spring-cloud-context</code> 与 <code>spring-cloud-alibaba-dependencies</code> 是否被间接覆盖。</p>
+<p class="li"><b>核心考察点</b>：考察 Boot、Cloud 与 Spring Cloud Alibaba 三者版本对应矩阵的查询方式与依赖树冲突排查手段。</p>
+</div>
+</div>
+<div class="q" id="m9q5">
+<button class="spk spkq" onclick="speakId('m9q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud 2020.0.x 版本号变更与 Netflix 组件移除带来哪些改造？</b></div>
+<p class="li"><b>参考答案</b>：Spring Cloud 从 2020.0.x（代号 Ilford）起改用日历化版本 <code>YYYY.MINOR.PATCH</code>，取代此前按伦敦地铁站命名的 Hoxton、Greenwich 等列车版本，便于表达与 Boot 的对应节奏。2020.0.0 同时把除 Eureka 外的 Netflix 组件移出发布列车。</p>
+<p class="li">改造上服务调用改用 <code>Spring Cloud LoadBalancer</code> 替代 Ribbon，熔断限流换成 Resilience4j 或 Sentinel，网关换成 <code>Spring Cloud Gateway</code>，配置走 <code>spring.config.import</code> 与 Config Data API。</p>
+<p class="li"><b>核心考察点</b>：考察 Spring Cloud 版本号日历化变更、Netflix 组件移除范围以及对应替代组件的迁移改造路径。</p>
+<p class="li"><b>面试追问</b>：升级到 2020.0.x 后若短期无法替换 Ribbon，能否自行引入旧版 Netflix starter 过渡，这种做法在依赖兼容与后续维护上有哪些风险？</p>
+</div>
+</div>
+<div class="q" id="m9q6">
+<button class="spk spkq" onclick="speakId('m9q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>bootstrap 上下文默认关闭后如何导入远程配置？</b></div>
+<p class="li"><b>参考答案</b>：Boot 2.4 起重写了配置加载模型并引入 Config Data API，Cloud 2020.0.x 默认不再创建 bootstrap 父上下文，<code>bootstrap.yml</code> 与 <code>spring.cloud.bootstrap.enabled</code> 失效，导致依赖 Nacos 或 Config Server 早期加载的配置读不到。</p>
+<p class="li">推荐迁移到 <code>spring.config.import</code>，例如用 <code>optional:configserver:</code> 或 <code>optional:nacos:</code> 前缀把远程配置纳入标准 <code>Environment</code>，并配合 <code>spring.config.activate.on-profile</code> 做环境差异。</p>
+<p class="li"><b>核心考察点</b>：考察 bootstrap 上下文被默认关闭的原因、spring.config.import 迁移细节与 Config Data API 理解。</p>
+</div>
+</div>
+<div class="q" id="m9q7">
+<button class="spk spkq" onclick="speakId('m9q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>从 Spring Boot 2.2 升级到 2.7 或 3.x 需要完成哪些主要改造？</b></div>
+<p class="li"><b>参考答案</b>：升到 Boot 2.7 主要是配置属性重命名与基础设施升级，例如 <code>spring.redis</code> 迁到 <code>spring.data.redis</code>、部分 <code>server</code> 与 <code>management</code> 键变更，需引入 <code>spring-boot-properties-migrator</code> 在启动时打印失效属性并逐项整改。</p>
+<p class="li">升到 Boot 3 门槛更高：基线要求 Java 17，且基于 Jakarta EE 9，全部 <code>javax.*</code> 包名要迁到 <code>jakarta.*</code>，<code>HttpServletRequest</code>、<code>Validation</code> 与 <code>Persistence</code> 及 Servlet 容器均受影响。</p>
+<p class="li"><b>核心考察点</b>：考察 Boot 2.7 配置属性迁移与 Boot 3 的 Java 17 基线、Jakarta 命名空间升级改造要点。</p>
+</div>
+</div>
+<h3 id="mod9-upgrade">C. 组件退役与治理（进阶）</h3>
+<div class="q" id="m9q8">
+<button class="spk spkq" onclick="speakId('m9q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Netflix 组件退役后 Ribbon、Hystrix、Zuul 等分别应如何替换？</b></div>
+<p class="li"><b>参考答案</b>：替代清单需按职责逐项落地：客户端负载均衡由 Ribbon 换为 <code>Spring Cloud LoadBalancer</code> 并可自定义 <code>ReactiveLoadBalancer</code>；熔断与舱壁隔离由 Hystrix 换为 Resilience4j 或 Alibaba Sentinel。</p>
+<p class="li">注册发现方面 Eureka 仍属维护态，可直接迁到 Nacos 或 Consul，迁移期用双注册双订阅平滑过渡。改造要注意行为差异：Ribbon 的 <code>IRule</code> 与 <code>NFLoadBalancer</code> 规则需重写为 LoadBalancer 的 <code>ServiceInstanceListSupplier</code>。</p>
+<p class="li"><b>核心考察点</b>：考察 Ribbon、Hystrix、Zuul 等 Netflix 组件退役后的替代清单与行为差异带来的代码改造点。</p>
+</div>
+</div>
+<div class="q" id="m9q9">
+<button class="spk spkq" onclick="speakId('m9q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>多版本共存与灰度升级时如何用 BOM 治理并排查依赖冲突？</b></div>
+<p class="li"><b>参考答案</b>：灰度升级期多版本共存要通过 BOM 与 <code>dependencyManagement</code> 统一收敛，父 POM 只声明 <code>spring-cloud-dependencies</code> 与 <code>spring-cloud-alibaba-dependencies</code> 的版本，子模块禁止写死版本。</p>
+<p class="li">运行期共存靠注册元数据与路由隔离：给实例打 <code>version</code> 元数据，网关与 <code>LoadBalancer</code> 按标签把流量导向新旧版本，配合 Nacos 权重与灰度规则逐步切流。治理上建立依赖基线白名单、CI 卡口检测版本越界、用 <code>jdeps</code> 与启动检查排除同名类冲突，并在升级前后对比自动配置报告，避免半升级态引发 <code>NoSuchMethodError</code>。</p>
+<p class="li"><b>核心考察点</b>：考察 BOM 统一版本收敛、依赖冲突定位手段，以及灰度期多版本共存时的标签路由隔离治理。</p>
+<p class="li"><b>面试追问</b>：灰度期新旧服务共存时，如何保证同一用户的连续请求始终落在同一版本，避免会话状态与本地缓存数据在版本间来回抖动，以及灰度回滚时状态该如何收敛？</p>
+</div>
+</div>
+<div class="q" id="m9q10">
+<button class="spk spkq" onclick="speakId('m9q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>生产环境如何排查并治理 starter 自动配置冲突与排包问题？</b></div>
+<p class="li"><b>参考答案</b>：排包先由 <code>mvn dependency:tree</code> 找出多余传递依赖，再用 <code>exclusions</code> 剔除冲突 starter，或在启动参数用 <code>spring.autoconfigure.exclude</code> 精确关闭自动配置类。定位冲突可开启 <code>--debug</code> 查看 <code>CONDITIONS EVALUATION REPORT</code>。</p>
+<p class="li">生产治理应把 <code>spring.autoconfigure.exclude</code> 收敛到集中配置而非散落各处，配合 <code>spring.main.allow-bean-definition-overriding=false</code> 暴露重复 Bean，避免静默覆盖。</p>
+<p class="li"><b>核心考察点</b>：考察 starter 排包、自动配置冲突定位与 spring.autoconfigure.exclude 的集中治理方式。</p>
+</div>
+</div>
+</div></section>
+<section class="module" id="mod10">
+<h2>模块十：生产排障与场景设计 <button class="spk" onclick="speakModule(10)" title="朗读本模块" aria-label="朗读本模块">🔊</button></h2>
+<div class="modbody" id="modbody10">
+<h3 id="mod10-fault">A. 典型故障诊断（中级）</h3>
+<div class="q" id="m10q1">
+<button class="spk spkq" onclick="speakId('m10q1')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>服务注册不上或频繁掉线，应按怎样的完整路径排查？</b></div>
+<p class="li"><b>参考答案</b>：先确认基础连通：核对 <code>spring.cloud.nacos.discovery.server-addr</code> 与端口，Nacos 2.x 还需放通 9848 与 9849 的 gRPC 端口，检查 namespace、group 与集群名是否与服务端一致，再看 <code>spring.application.name</code> 与鉴权 <code>username</code>、<code>password</code>。</p>
+<p class="li">频繁掉线多为心跳与健康检查问题：临时实例依赖客户端五秒心跳与服务端十五秒不健康、三十秒剔除阈值，需排查 GC 停顿、线程池打满、CPU 饱和导致心跳线程饿死，以及 ephemeral 与 persistent 实例类型配错。还要核对客户端与服务端版本兼容、UDP 推送端口、时间偏差与服务端集群 Raft 是否稳定。</p>
+<p class="li"><b>核心考察点</b>：考察服务注册不上与频繁掉线的分层排查路径，以及 Nacos 心跳与实例剔除机制的理解。</p>
+</div>
+</div>
+<div class="q" id="m10q2">
+<button class="spk spkq" onclick="speakId('m10q2')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Feign 超时引发级联雪崩时如何快速定位并止血？</b></div>
+<p class="li"><b>参考答案</b>：定位先在网关与调用方看 RT、错误率与线程池指标，用 SkyWalking 或 Micrometer Tracing 的 traceId 串联整条链路，确认是哪一跳变慢；再用 Arthas 的 <code>trace</code> 与 <code>stack</code>、或 <code>jstack</code> 看 Feign 调用线程是否大量阻塞在 <code>LoadBalancerClient</code> 与连接池获取上。</p>
+<p class="li">止血顺序是先扩容或重启堆积节点，再把 <code>spring.cloud.openfeign.client.config.default.connectTimeout</code> 与 <code>readTimeout</code> 收紧并配置合理重试，避免线程被长期占用；开启 Resilience4j 或 Sentinel 的熔断、<code>fallback</code> 与舱壁隔离，对非核心接口直接降级返回兜底。</p>
+<p class="li"><b>核心考察点</b>：考察 Feign 超时引发级联雪崩的链路定位手段、止血优先级以及超时与熔断配置的落地。</p>
+</div>
+</div>
+<div class="q" id="m10q3">
+<button class="spk spkq" onclick="speakId('m10q3')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>Spring Cloud Gateway 返回 503 的常见根因与排查路径是什么？</b></div>
+<p class="li"><b>参考答案</b>：Gateway 返回 503 通常是 <code>lb://service</code> 路由在负载均衡阶段找不到可用实例，先看 Nacos 控制台该服务是否注册、实例是否健康、<code>namespace</code> 与 <code>group</code> 是否与网关一致，再查 <code>spring.cloud.gateway.discovery.locator.enabled</code> 与路由谓词是否拼错服务名。</p>
+<p class="li">若实例存在仍 503，排查是否所有实例权重为零或被摘除、是否开启了 <code>Retry</code> 过滤器反复重试放大故障、是否下游直接返回 503 透传，以及 WebFlux 线程池与连接池耗尽。用 <code>/actuator/gateway/routes</code> 核对生效路由，开启 <code>reactor.netty</code> 与负载均衡 DEBUG 日志看选实例过程。</p>
+<p class="li"><b>核心考察点</b>：考察 Gateway 返回 503 时负载均衡选实例、注册发现与路由配置的完整排查思路。</p>
+<p class="li"><b>面试追问</b>：若网关只是偶发 503 且很快自愈，你会如何抓取现场证据，区分是实例健康检查抖动、负载均衡缓存过期还是上游瞬时过载，又该如何加固避免复发？</p>
+</div>
+</div>
+<div class="q" id="m10q4">
+<button class="spk spkq" onclick="speakId('m10q4')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>配置中心修改配置后不生效，应从哪些环节排查？</b></div>
+<p class="li"><b>参考答案</b>：先确认加载链路：Boot 2.4 之后若未启用 <code>spring-cloud-starter-bootstrap</code> 或 <code>spring.config.import</code>，<code>bootstrap.yml</code> 里的远程配置根本不会加载。核对 dataId 是否由 <code>spring.application.name</code>、profile 与 <code>file-extension</code> 拼出，避免读了旧快照。</p>
+<p class="li">再看刷新机制：<code>@Value</code> 注入需类上标注 <code>@RefreshScope</code>，<code>@ConfigurationProperties</code> 才能随 <code>Environment</code> 变更自动刷新，Spring Cloud Config 需调用 <code>/actuator/refresh</code>，Nacos 依赖 <code>NacosContextRefresher</code> 监听。</p>
+<p class="li"><b>核心考察点</b>：考察配置不生效时 Config Data 加载链路、Nacos dataId 拼接规则与刷新机制的排查要点。</p>
+</div>
+</div>
+<h3 id="mod10-design">B. 全链路与多环境设计（高级）</h3>
+<div class="q" id="m10q5">
+<button class="spk spkq" onclick="speakId('m10q5')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>全链路灰度在网关、Feign、MQ、线程池与数据库如何传递流量染色？</b></div>
+<p class="li"><b>参考答案</b>：流量染色以统一标签贯穿全链路：网关按规则给请求写入灰度标识，用 <code>GlobalFilter</code> 放进 Header，OpenFeign 通过 <code>RequestInterceptor</code> 透传，消息场景把标签写入消息 Header 或属性，线程池异步处用阿里 TTL 的 <code>TransmittableThreadLocal</code> 保证不丢，数据库可用影子表或影子字段承接灰度数据。</p>
+<p class="li">路由层在 Nacos 给实例打 <code>version</code> 与灰度元数据，网关与自定义 <code>ServiceInstanceListSupplier</code> 按标签选实例，配合 Sentinel 对灰度流单独限流。设计要点是标签只在入口生成、下游只透传不改写，线程池与 MQ 是最易断点需专项验证；灰度与生产共用存储时必须做数据隔离与可回滚，发布按实例权重逐步放量并保留一键摘流。</p>
+<p class="li"><b>核心考察点</b>：考察流量染色在网关、Feign、MQ、线程池与数据库之间的透传设计，以及异步断点的防护。</p>
+</div>
+</div>
+<div class="q" id="m10q6">
+<button class="spk spkq" onclick="speakId('m10q6')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>多环境隔离中 namespace、group、profile 与标签路由如何配合防误用？</b></div>
+<p class="li"><b>参考答案</b>：隔离分四层：用 Nacos <code>namespace</code> 做环境硬隔离（开发、测试、生产各一个），<code>group</code> 区分应用或业务域，<code>spring.profiles.active</code> 决定配置 dataId 后缀，再叠加实例元数据与标签路由做灰度分流。</p>
+<p class="li">防误用靠约束而非约定：CI 注入环境标识并禁止跨 <code>namespace</code> 拉取，<code>spring.config.import</code> 使用带 profile 占位的可选导入，生产账号只授权本 namespace 的读写，配置中心开启变更审计与二次确认。还要禁止代码里硬编码地址与账号，用启动自检校验当前 namespace 与预期一致，配合标签路由兜底，防止测试流量或错配漏进生产。</p>
+<p class="li"><b>核心考察点</b>：考察 namespace、group、profile 与标签路由的多环境隔离设计及配置误用防护。</p>
+<p class="li"><b>面试追问</b>：当开发与生产共用一套 Nacos 集群时，如何用最小改造避免测试配置误写到生产，同时保留紧急情况下跨环境改配置的应急通道？</p>
+</div>
+</div>
+<div class="q" id="m10q7">
+<button class="spk spkq" onclick="speakId('m10q7')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>注册中心与配置中心如何做高可用部署与容灾降级？</b></div>
+<p class="li"><b>参考答案</b>：注册中心与配置中心都要集群化部署，Nacos 建议至少三个节点并前置负载均衡或 VIP，配置数据用外置 MySQL 主备加 JRaft 保证一致，临时服务实例走 Distro 协议做去中心化同步，节点跨可用区打散避免单机房故障。客户端要配置多地址与合理超时重试，并开启健康检查自动摘除异常节点。</p>
+<p class="li">容灾重点是注册中心挂了业务仍能跑：Nacos 客户端有本地服务缓存与配置快照，配合 <code>failover</code> 目录可在断连时用本地列表继续调用，配置侧用本地缓存兜底避免启动失败。还需定义 RTO 与 RPO、定期演练集群脑裂与数据库切换、监控 Leader 选举与长轮询堆积，并在网关侧准备静态路由降级预案，把注册中心故障的影响面压到最小。</p>
+<p class="li"><b>核心考察点</b>：考察注册与配置中心的高可用集群部署、一致性协议，以及本地缓存与服务降级的容灾设计。</p>
+</div>
+</div>
+<div class="q" id="m10q8">
+<button class="spk spkq" onclick="speakId('m10q8')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>微服务容量规划、限流降级预案与故障演练应如何落地？</b></div>
+<p class="li"><b>参考答案</b>：容量规划先靠全链路压测摸清单机水位，用 JMeter 或 wrk 得到 QPS、P99 延迟与线程数拐点，按峰值乘以冗余系数定实例数，并把 CPU、堆内存、连接池与 GC 停顿设成水位线。据此配置 Sentinel 的 QPS 限流、线程数隔离、冷启动与匀速排队，以及熔断慢调用比例与异常比例阈值，避免阈值凭经验拍脑袋。</p>
+<p class="li">降级预案要分级列出可关闭的非核心功能、缓存兜底与静态页，明确触发条件、执行人与回滚步骤，并通过 ChaosBlade 等工具做故障注入演练，验证限流生效、熔断恢复与线程池隔离。上线前做预案评审，日常用 Prometheus 与 Grafana 盯水位和拒绝量，定期复盘演练结果，把限流阈值与容量模型随流量变化动态校准。</p>
+<p class="li"><b>核心考察点</b>：考察容量模型与水位测算、限流降级预案的分级设计，以及混沌故障注入演练的落地方法。</p>
+</div>
+</div>
+<h3 id="mod10-sum">C. 综合架构设计与追问（进阶）</h3>
+<div class="q" id="m10q9">
+<button class="spk spkq" onclick="speakId('m10q9')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>从零设计一套 Spring Cloud 微服务体系，组件如何选型与取舍？</b></div>
+<p class="li"><b>参考答案</b>：选型以当前维护态为准：注册与配置用 Nacos，网关用 <code>Spring Cloud Gateway</code>，同步调用用 <code>OpenFeign</code> 加 <code>Spring Cloud LoadBalancer</code>，容错用 Sentinel 或 Resilience4j，链路追踪用 Micrometer Tracing 配 SkyWalking，消息用 RocketMQ。</p>
+<p class="li">取舍理由是避开已退役的 Eureka、Ribbon、Hystrix 与 Zuul，Java 17 与 Jakarta 命名空间跟随官方主线；注册中心要在 AP 与 CP 间按场景选，配置与注册共用一个 Nacos 可降运维成本但需评估爆炸半径。</p>
+<p class="li"><b>核心考察点</b>：考察从零搭建微服务体系时的组件选型、版本矩阵锁定，以及一致性与可用性的取舍理由。</p>
+</div>
+</div>
+<div class="q" id="m10q10">
+<button class="spk spkq" onclick="speakId('m10q10')" title="朗读此题">🔊</button>
+<div class="qbody"><div class="qtitle"><b>线上大面积接口超时，完整的排查思路、工具与复盘改进是什么？</b></div>
+<p class="li"><b>参考答案</b>：先确认现象与范围：看监控大盘的错误率、P99 延迟、QPS 与线程池水位，判断是单接口、单服务还是全站，并对照变更时间线（发布、配置推送、扩容、依赖升级）。若多服务同时异常，优先查公共依赖：注册中心、配置中心、网关、数据库、缓存、DNS 与网络；再用 traceId 串联 SkyWalking 链路定位第一处耗时突增的跳。</p>
+<p class="li">工具上组合使用 Arthas 的 <code>trace</code> 与 <code>dashboard</code>、<code>jstack</code> 查线程阻塞与死锁、<code>jmap</code> 与 GC 日志查停顿、慢 SQL 日志、<code>tcpdump</code> 查网络重传，以及 Nacos 控制台确认实例健康。止血按回滚、扩容、降级、限流、切流顺序执行，优先恢复而非查根因。</p>
+<p class="li"><b>核心考察点</b>：考察线上大面积接口超时的范围判定、排查工具链、止血先后顺序与复盘改进机制的设计。</p>
+<p class="li"><b>面试追问</b>：如果超时只在每天固定时段出现且能自行恢复，你会优先怀疑哪些周期性因素，又该补充哪些监控指标与告警规则来提前发现，并设计自动止血与降级联动？</p>
+</div>
+</div>
+</div></section>
+</div>
+
+</div>
+<button class="toc-backdrop" id="tocBackdrop" type="button" tabindex="-1" aria-label="关闭目录"></button>
+
+<script>
+// 目录独立初始化，避免设备语音支持情况影响导航。
+(function initNavigation(){
+  const topbar=document.querySelector('.topbar');
+  const content=document.querySelector('.container');
+  const toc=document.getElementById('toc');
+  const list=document.getElementById('tocList');
+  const toggle=document.getElementById('tocToggle');
+  const close=document.getElementById('tocClose');
+  const backdrop=document.getElementById('tocBackdrop');
+  const compact=window.matchMedia('(max-width:1000px)');
+  const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
+  const entries=[];
+  const modules=[];
+  let current=null;
+  let scrollPending=false;
+
+  function headingText(heading){
+    const copy=heading.cloneNode(true);
+    copy.querySelectorAll('button').forEach(button=>button.remove());
+    return copy.textContent.trim();
+  }
+  function setExpanded(module, expanded){
+    module.groups.hidden=!expanded;
+    module.button.setAttribute('aria-expanded', String(expanded));
+    module.button.setAttribute('aria-label', (expanded?'收起':'展开')+module.title+'分组');
+    module.button.textContent=expanded?'▾':'▸';
+  }
+  function addLink(parent, target, heading, module){
+    const link=document.createElement('a');
+    link.href='#'+target.id;
+    link.textContent=headingText(heading);
+    heading.tabIndex=-1;
+    parent.appendChild(link);
+    const entry={target, heading, link, module};
+    entries.push(entry);
+    link.addEventListener('click', event=>{
+      if(event.button!==0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      setDrawer(false, false);
+      if(location.hash!==link.hash) history.pushState(null, '', link.hash);
+      activate(entry);
+      heading.focus({preventScroll:true});
+      target.scrollIntoView({behavior:reducedMotion.matches?'auto':'smooth', block:'start'});
+    });
+    return entry;
+  }
+  document.querySelectorAll('.module').forEach(section=>{
+    const heading=section.querySelector('h2');
+    const item=document.createElement('li');
+    const row=document.createElement('div');
+    row.className='toc-row';
+    item.appendChild(row);
+    list.appendChild(item);
+    const module={title:headingText(heading), entry:null, groups:null, button:null};
+    modules.push(module);
+    module.entry=addLink(row, section, heading, module);
+    const headings=section.querySelectorAll('h3');
+    if(!headings.length) return;
+    module.button=document.createElement('button');
+    module.button.className='toc-expand';
+    module.button.type='button';
+    module.groups=document.createElement('ul');
+    module.groups.className='toc-groups';
+    module.groups.id='toc-'+section.id+'-groups';
+    module.button.setAttribute('aria-controls', module.groups.id);
+    row.appendChild(module.button);
+    item.appendChild(module.groups);
+    headings.forEach(group=>{
+      const child=document.createElement('li');
+      module.groups.appendChild(child);
+      addLink(child, group, group, module);
+    });
+    setExpanded(module, false);
+    module.button.addEventListener('click', ()=>setExpanded(module, module.groups.hidden));
+  });
+
+  function activate(entry){
+    if(current===entry) return;
+    if(current) current.link.removeAttribute('aria-current');
+    modules.forEach(module=>module.entry.link.classList.remove('is-parent'));
+    current=entry;
+    entry.link.setAttribute('aria-current', 'location');
+    if(entry!==entry.module.entry) entry.module.entry.link.classList.add('is-parent');
+    if(entry.module.groups) setExpanded(entry.module, true);
+    const bounds=toc.getBoundingClientRect();
+    const linkBounds=entry.link.getBoundingClientRect();
+    if(linkBounds.top<bounds.top+12) toc.scrollTop+=linkBounds.top-bounds.top-12;
+    else if(linkBounds.bottom>bounds.bottom-12) toc.scrollTop+=linkBounds.bottom-bounds.bottom+12;
+  }
+  function updateCurrent(){
+    const limit=topbar.getBoundingClientRect().height+24;
+    let active=entries[0];
+    for(const entry of entries){
+      if(entry.target.getBoundingClientRect().top>limit) break;
+      active=entry;
+    }
+    // 页尾空间不足时，仍能高亮最后一个分组。
+    if(window.scrollY>0 && window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-2){
+      active=entries[entries.length-1];
+    }
+    if(active) activate(active);
+  }
+  function requestCurrent(){
+    if(scrollPending) return;
+    scrollPending=true;
+    requestAnimationFrame(()=>{ scrollPending=false; updateCurrent(); });
+  }
+  function measureTopbar(){
+    document.documentElement.style.setProperty('--topbar-height', topbar.getBoundingClientRect().height+'px');
+    requestCurrent();
+  }
+  function setDrawer(open, restoreFocus){
+    const visible=compact.matches && open;
+    document.body.classList.toggle('toc-open', visible);
+    toggle.setAttribute('aria-expanded', String(visible));
+    toc.inert=compact.matches && !visible;
+    topbar.inert=visible;
+    content.inert=visible;
+    if(visible){
+      toc.setAttribute('role', 'dialog');
+      toc.setAttribute('aria-modal', 'true');
+      close.focus();
+    } else {
+      toc.removeAttribute('role');
+      toc.removeAttribute('aria-modal');
+      if(restoreFocus) toggle.focus();
+    }
+  }
+  toggle.addEventListener('click', ()=>setDrawer(true, false));
+  close.addEventListener('click', ()=>setDrawer(false, true));
+  backdrop.addEventListener('click', ()=>setDrawer(false, true));
+  document.addEventListener('keydown', event=>{
+    if(!document.body.classList.contains('toc-open')) return;
+    if(event.key==='Escape'){
+      event.preventDefault();
+      setDrawer(false, true);
+    } else if(event.key==='Tab'){
+      const controls=Array.from(toc.querySelectorAll('a[href], button')).filter(el=>el.getClientRects().length);
+      const first=controls[0], last=controls[controls.length-1];
+      if(event.shiftKey && document.activeElement===first){ event.preventDefault(); last.focus(); }
+      else if(!event.shiftKey && document.activeElement===last){ event.preventDefault(); first.focus(); }
+    }
+  });
+  compact.addEventListener('change', ()=>{
+    const focusInside=toc.contains(document.activeElement);
+    setDrawer(false, compact.matches && focusInside);
+    measureTopbar();
+  });
+  function restoreAnchor(){
+    const entry=entries.find(candidate=>'#'+candidate.target.id===location.hash);
+    if(entry){
+      activate(entry);
+      entry.target.scrollIntoView({behavior:'auto', block:'start'});
+    } else requestCurrent();
+  }
+  window.addEventListener('scroll', requestCurrent, {passive:true});
+  window.addEventListener('resize', measureTopbar);
+  window.addEventListener('hashchange', restoreAnchor);
+  window.addEventListener('load', ()=>{ measureTopbar(); restoreAnchor(); });
+  if(window.ResizeObserver) new ResizeObserver(measureTopbar).observe(topbar);
+  setDrawer(false, false);
+  measureTopbar();
+  restoreAnchor();
+})();
+</script>
+
+<script>
+let voices=[], preferredVoice='', playbackId=0, queue=[], qi=0;
+const speechEngine=window.speechSynthesis;
+let followPlay=true, followPaused=false, currentQid=null, muteUntil=0, suppressFollow=false;
+let textHighlight=true;
+const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
+const preferenceKey='springcloud-speech-preferences';
+let mode='offline', ttsVoice='xiaoxiao', scope='full';
+const VOICE_LABEL={xiaoxiao:'晓晓'};
+const AUDIO_ROOT=encodeURIComponent('sc_audio');
+const ALL_IDS=Array.from(document.querySelectorAll('.q[id]')).map(function(d){return d.id;});
+const player=document.createElement('audio');
+player.id='qaPlayer'; player.preload='none'; document.body.appendChild(player);
+try {
+  const saved=JSON.parse(localStorage.getItem(preferenceKey)||'{}');
+  if(saved && typeof saved.voice==='string') preferredVoice=saved.voice;
+  if(saved && typeof saved.rate==='number' && saved.rate>=0.6 && saved.rate<=1.4) document.getElementById('rate').value=saved.rate;
+  if(saved && saved.ttsVoice==='xiaoxiao') ttsVoice=saved.ttsVoice;
+  if(saved && (saved.mode==='offline'||saved.mode==='online')) mode=saved.mode;
+  if(saved && (saved.scope==='full'||saved.scope==='q'||saved.scope==='a')) scope=saved.scope;
+  if(saved && typeof saved.followPlay==='boolean') followPlay=saved.followPlay;
+  if(saved && typeof saved.textHighlight==='boolean') textHighlight=saved.textHighlight;
+} catch(e) { /* 存储不可用不影响播放。 */ }
+function savePreferences(){
+  try { localStorage.setItem(preferenceKey,JSON.stringify({
+    voice:preferredVoice, rate:parseFloat(document.getElementById('rate').value),
+    ttsVoice:ttsVoice, scope:scope, mode:mode, followPlay:followPlay, textHighlight:textHighlight })); }
+  catch(e) { /* 部分浏览器限制本地文件存储。 */ }
+}
+function voiceId(v){ return JSON.stringify([v.voiceURI||v.name,v.lang,v.name]); }
+function scoreVoice(v){
+  const n=(v.name||'').toLowerCase(), lang=(v.lang||'').toLowerCase().replace(/_/g,'-');
+  const female=/xiao[ -]*(xiao|yi)|hui[ -]*hui|yao[ -]*yao|ting[ -]*ting|晓晓|晓伊|慧慧|瑶瑶|婷婷|female|女|woman/.test(n);
+  const natural=/natural|online|neural|enhanced|premium|自然|在线|神经|增强/.test(n);
+  return (/^(zh-(cn|sg|hans)(-|$)|cmn($|-))/.test(lang)?100:0)+(female?40:0)+(natural?20:0);
+}
+function updateVoiceTag(){
+  const v=voices.find(v=>voiceId(v)===document.getElementById('voice').value);
+  document.getElementById('voiceTag').textContent=v?'当前：'+v.name:'设备未提供中文语音，请检查系统语音设置';
+}
+function loadVoices(){
+  const sel=document.getElementById('voice'), current=sel.value;
+  voices=speechEngine?speechEngine.getVoices().filter(v=>/^(zh|cmn)([-_]|$)/i.test(v.lang||'')):[];
+  voices.sort((a,b)=>scoreVoice(b)-scoreVoice(a));
+  sel.innerHTML='';
+  voices.forEach((v,i)=>{
+    const o=document.createElement('option'); o.value=voiceId(v);
+    o.text=v.name+' ('+v.lang+')'+(i===0?' · 推荐':''); sel.appendChild(o);
+  });
+  const choice=[preferredVoice,current].find(id=>voices.some(v=>voiceId(v)===id));
+  if(voices.length) sel.value=choice||voiceId(voices[0]);
+  sel.disabled=!voices.length;
+  document.getElementById('previewVoice').disabled=(mode==='online' && !voices.length);
+  updateVoiceTag();
+  if(!speechEngine) document.getElementById('voiceTag').textContent='当前浏览器不支持语音朗读';
+}
+function updateModeUI(){
+  const offline=mode==='offline';
+  ['voice','voiceTag','onlineVoiceLbl'].forEach(function(x){
+    const el=document.getElementById(x); if(el) el.classList.toggle('hidden', offline); });
+  ['ttsVoiceLbl','ttsVoice','scopeLbl','scope'].forEach(function(x){
+    const el=document.getElementById(x); if(el) el.classList.toggle('hidden', !offline); });
+  document.getElementById('mode').value=mode;
+  document.getElementById('ttsVoice').value=ttsVoice;
+  document.getElementById('scope').value=scope;
+  document.getElementById('previewVoice').disabled=(mode==='online' && !voices.length);
+}
+function setStatus(s){ document.getElementById('status').textContent=s; }
+function canSpeak(){
+  if(!speechEngine || !window.SpeechSynthesisUtterance){ setStatus('当前浏览器不支持语音朗读'); return false; }
+  if(!voices.length) loadVoices();
+  if(!voices.length){ setStatus('设备未提供中文语音，请检查系统语音设置'); return false; }
+  return true;
+}
+function makeUtter(text){
+  const u=new SpeechSynthesisUtterance(text);
+  u.voice=voices.find(v=>voiceId(v)===document.getElementById('voice').value)||voices[0];
+  u.lang=u.voice.lang; u.rate=parseFloat(document.getElementById('rate').value); return u;
+}
+function speakText(text,status='正在朗读…'){
+  if(!canSpeak()) return;
+  cancelPlayback(); const id=playbackId, u=makeUtter(text);
+  u.onend=()=>{ if(id===playbackId) setStatus('播放完成'); };
+  u.onerror=e=>{ if(id===playbackId) setStatus('朗读失败：'+e.error); };
+  setStatus(status); speechEngine.speak(u); return u;
+}
+function audioUrl(vk,id,part){
+  const k=vk+'|'+id+'|'+part;
+  if(window.AUDIO_DB && AUDIO_DB[k]) return AUDIO_DB[k];
+  return AUDIO_ROOT+'/'+encodeURIComponent(vk)+'/'+encodeURIComponent(id+'_'+part+'.mp3');
+}
+function partText(id,part){
+  const qbody=document.getElementById(id).querySelector('.qbody');
+  if(part==='q') return qbody.querySelector('.qtitle').innerText;
+  return Array.from(qbody.querySelectorAll('p.li')).map(function(p){return p.innerText;}).join('。');
+}
+function clearHighlight(){
+  document.querySelectorAll('.q.is-playing').forEach(function(e){e.classList.remove('is-playing');});
+}
+function highlight(id,on){
+  document.querySelectorAll('.q.is-playing').forEach(function(e){ if(e.id!==id) e.classList.remove('is-playing'); });
+  const el=document.getElementById(id);
+  if(el) el.classList.toggle('is-playing',on);
+}
+function clearReading(){
+  document.querySelectorAll('.q[data-reading]').forEach(function(e){ e.removeAttribute('data-reading'); });
+}
+function setReading(id, part){
+  clearReading();
+  if(!textHighlight) return;
+  const el=document.getElementById(id);
+  if(el) el.setAttribute('data-reading', part==='a'?'a':'q');
+}
+function expand(ids,sc){
+  const out=[];
+  ids.forEach(function(id){
+    (sc==='full'?['q','a']:[sc]).forEach(function(p){ out.push({id:id,part:p}); });
+  });
+  return out;
+}
+function cancelPlayback(){
+  playbackId++; queue=[]; qi=0;
+  if(player){ player.pause(); player.onended=null; player.onerror=null; }
+  if(speechEngine) speechEngine.cancel();
+  clearHighlight();
+  clearReading();
+  resetFollow();
+}
+function playSeq(ids,sc,suppress){
+  if(!ids || !ids.length) return;
+  cancelPlayback();
+  const id=playbackId;
+  queue=expand(ids,sc); qi=0;
+  if(suppress) suppressFollow=true;
+  step(id);
+}
+function step(id){
+  if(id!==playbackId) return;
+  if(qi>=queue.length){ clearHighlight(); clearReading(); resetFollow(); setStatus('播放完成'); return; }
+  const it=queue[qi], n=ALL_IDS.indexOf(it.id)+1;
+  highlight(it.id,true);
+  setReading(it.id, it.part);
+  followTo(it.id);
+  setStatus('第 '+n+'/'+ALL_IDS.length+' 题 · '+(it.part==='q'?'题目':'答案')+' · '+VOICE_LABEL[ttsVoice]);
+  if(mode==='online'){ fallbackSpeak(id,it.id,it.part); return; }
+  let fell=false;
+  function fallbackOnce(){ if(fell) return; fell=true; fallbackSpeak(id,it.id,it.part); }
+  player.pause();
+  player.playbackRate=parseFloat(document.getElementById('rate').value)||1;
+  player.onended=function(){ if(id===playbackId) advance(id); };
+  player.onerror=function(){ if(id===playbackId) fallbackOnce(); };
+  player.src=audioUrl(ttsVoice,it.id,it.part);
+  const pr=player.play();
+  if(pr && pr.catch) pr.catch(function(){ if(id===playbackId) fallbackOnce(); });
+}
+function fallbackSpeak(id,qid,part){
+  if(!canSpeak()){ setStatus('离线音频不可用，且浏览器不支持在线朗读'); return; }
+  const u=makeUtter(partText(qid,part));
+  u.onend=function(){ if(id===playbackId) advance(id); };
+  u.onerror=function(e){
+    if(id===playbackId && e.error!=='canceled' && e.error!=='interrupted') advance(id);
+  };
+  speechEngine.speak(u);
+}
+function advance(id){
+  if(id!==playbackId) return;
+  qi++; step(id);
+}
+function speakId(id){ playSeq([id],'full'); }
+function speakPart(id,part){ playSeq([id], part==='a'?'a':'q'); }
+function speakModule(m){
+  const box=document.getElementById('modbody'+m);
+  if(!box) return;
+  playSeq(Array.from(box.querySelectorAll('.q[id]')).map(function(d){return d.id;}), scope);
+}
+function playAll(){ playSeq(ALL_IDS.slice(), scope); }
+function stopAll(){ cancelPlayback(); setStatus('已停止'); }
+function previewVoice(){
+  if(mode==='offline') playSeq(['m1q1'],'q',true);
+  else speakText('你好，我会陪你一起准备面试。请选择你喜欢的声音，按照自己的节奏学习。','正在试听…');
+}
+function injectQuestionButtons(){
+  document.querySelectorAll('.q[id]').forEach(function(q){
+    const b=q.querySelector('.spk.spkq');
+    if(b){ b.title='全文：题目+答案'; b.setAttribute('aria-label','全文：题目+答案'); }
+    if(q.querySelector('.qacts')) return;
+    const id=q.id, box=document.createElement('div'); box.className='qacts';
+    const mk=function(label,part,title){
+      const btn=document.createElement('button');
+      btn.type='button'; btn.textContent=label; btn.title=title;
+      btn.setAttribute('aria-label',title);
+      btn.addEventListener('click',function(){ speakPart(id,part); });
+      return btn;
+    };
+    box.appendChild(mk('只听题','q','只听题目'));
+    box.appendChild(mk('只听答案','a','只听答案'));
+    q.appendChild(box);
+  });
+}
+document.getElementById('voice').addEventListener('change',function(){
+  preferredVoice=this.value; savePreferences(); updateVoiceTag();
+});
+document.getElementById('rate').addEventListener('input',function(){
+  savePreferences(); if(mode==='offline') player.playbackRate=parseFloat(this.value)||1;
+});
+document.getElementById('mode').addEventListener('change',function(){
+  mode=this.value; savePreferences(); updateModeUI(); cancelPlayback();
+});
+document.getElementById('ttsVoice').addEventListener('change',function(){
+  ttsVoice=this.value; savePreferences();
+});
+document.getElementById('scope').addEventListener('change',function(){
+  scope=this.value; savePreferences();
+});
+if(speechEngine) speechEngine.addEventListener('voiceschanged',loadVoices);
+window.addEventListener('load',loadVoices);
+loadVoices();
+injectQuestionButtons();
+updateModeUI();
+/* ===== 跟随朗读：播放切题时自动定位到当前题 ===== */
+function isPlaying(){ return queue.length>0 && qi<queue.length; }
+function currentQuestionId(){ var it=queue[qi]; return it?it.id:null; }
+function backBtn(){ return document.getElementById('backToCurrent'); }
+function syncFollowUI(){
+  var b=backBtn(); if(!b) return;
+  b.classList.toggle('hidden',
+    !(followPlay && !suppressFollow && followPaused && isPlaying()));
+}
+function resetFollow(){
+  followPaused=false; currentQid=null; muteUntil=0; suppressFollow=false;
+  syncFollowUI();
+}
+function followTo(id, force){
+  if(!followPlay || followPaused || suppressFollow || !id) return;
+  if(!force && currentQid===id) return;
+  var el=document.getElementById(id);
+  if(!el || !el.getClientRects().length) return;
+  if(document.body.classList.contains('toc-open')) return;
+  currentQid=id;
+  el.scrollIntoView({behavior:reducedMotion.matches?'auto':'smooth', block:'start', inline:'nearest'});
+}
+function pauseFollow(){
+  if(!isPlaying() || !followPlay || followPaused || suppressFollow) return;
+  if(Date.now()<muteUntil) return;
+  followPaused=true; syncFollowUI();
+}
+/* 程序平滑滚动只派发 scroll，wheel/touchmove/keydown 天然来自真实用户操作，
+   因此不监听 scroll，避免把目录跳转与锚点恢复误判成手动滚动。 */
+function onUserScrollIntent(e){
+  var t=e.target;
+  if(t && t.closest && t.closest('.toc, .topbar')) return;
+  if(e.type==='keydown'){
+    if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].indexOf(e.key)<0) return;
+    if(t && /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(t.tagName||'')) return;
+  }
+  pauseFollow();
+}
+window.addEventListener('wheel', onUserScrollIntent, {passive:true});
+window.addEventListener('touchmove', onUserScrollIntent, {passive:true});
+window.addEventListener('keydown', onUserScrollIntent);
+backBtn().addEventListener('click', function(){
+  if(!isPlaying()) return;
+  followPaused=false; muteUntil=Date.now()+600; syncFollowUI();
+  followTo(currentQuestionId(), true);
+});
+document.getElementById('followPlay').addEventListener('change', function(){
+  followPlay=this.checked; savePreferences();
+  if(!followPlay){ followPaused=false; syncFollowUI(); return; }
+  if(isPlaying()){ currentQid=null; followTo(currentQuestionId(), true); }
+});
+function initFollow(){
+  document.getElementById('followPlay').checked=followPlay;
+  syncFollowUI();
+}
+initFollow();
+/* ===== 文字高亮：按 part 恢复/清除，与跟随朗读互不影响 ===== */
+document.getElementById('textHighlight').addEventListener('change', function(){
+  textHighlight=this.checked; savePreferences();
+  if(!textHighlight){ clearReading(); return; }
+  if(isPlaying()){ var it=queue[qi]; if(it) setReading(it.id, it.part); }
+});
+function initTextHighlight(){ document.getElementById('textHighlight').checked=textHighlight; }
+initTextHighlight();
+</script>
+
+
+</body>
+</html>

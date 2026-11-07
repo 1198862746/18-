@@ -93,6 +93,30 @@
   }
   @media (max-width:600px) { .page-layout { padding:0 8px; } }
 .note{background:#eef6ff;border-left:4px solid #3b82f6;padding:10px 14px;margin:0 0 18px;border-radius:6px;color:#334155;font-size:14px;line-height:1.7}
+  /* ===== 逐字跳动（卡拉 OK 扫光）：只对当前播放 part 懒注入，卸载即还原 ===== */
+  :root { --kx-todo:#8590a3; --kx-read:#1e3a8a; --kx-now:#0b1f5e; }
+  .q.karaoke-on[data-reading="q"] .qtitle,
+  .q.karaoke-on[data-reading="a"] .qbody p.li { color:var(--kx-todo); }
+  .q.karaoke-on[data-reading="q"] .qtitle code,
+  .q.karaoke-on[data-reading="a"] .qbody p.li code { background:transparent; }
+  .q.karaoke-on .kx {
+    display:inline-block; vertical-align:baseline; line-height:inherit;
+    color:var(--kx-todo); font-weight:inherit;
+    transform:translateY(0) scale(1);
+    transition:transform .10s ease-out, color .09s linear, text-shadow .09s linear;
+  }
+  .q.karaoke-on .kx.is-read { color:var(--kx-read); }
+  .q.karaoke-on .kx.is-now {
+    color:var(--kx-now);
+    text-shadow:0 0 6px rgba(59,130,246,.9), 0 0 14px rgba(59,130,246,.5);
+    transform:translateY(-2px) scale(1.12);
+  }
+  @media (prefers-reduced-motion:reduce){
+    .q.karaoke-on .kx { transition:none; }
+    .q.karaoke-on .kx.is-now { transform:none; text-shadow:none; }
+  }
+  .q.kx-reduced .kx { transition:none; }
+  .q.kx-reduced .kx.is-now { transform:none; text-shadow:none; }
 </style>
 </head>
 <body>
@@ -114,6 +138,7 @@
   <span id="status"></span>
   <label class="lbl" title="播放时自动滚动定位到当前题"><input type="checkbox" id="followPlay" checked>跟随朗读</label>
   <label class="lbl" title="朗读时高亮当前题干或答案文字"><input type="checkbox" id="textHighlight" checked>文字高亮</label>
+  <label class="lbl" title="播放时按音频进度逐字扫光，当前字轻微跳动"><input type="checkbox" id="karaoke" checked>逐字跳动</label>
   <button type="button" id="backToCurrent" class="hidden alt" title="回到正在朗读的题目">↩ 回到当前题</button>
 </div>
 <div class="page-layout">
@@ -1203,6 +1228,9 @@ let voices=[], preferredVoice='', playbackId=0, queue=[], qi=0;
 const speechEngine=window.speechSynthesis;
 let followPlay=true, followPaused=false, currentQid=null, muteUntil=0, suppressFollow=false;
 let textHighlight=true;
+let karaokeOn=true;
+let karaokeActive=false, karaokeTargets=[], karaokeSpans=[];
+let karaokeLastK=-1, karaokeNowIdx=-1, karaokeRaf=0, karaokePlayId=-1;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion:reduce)');
 const preferenceKey='springcloud-speech-preferences';
 let mode='offline', ttsVoice='xiaoxiao', scope='full';
@@ -1220,11 +1248,12 @@ try {
   if(saved && (saved.scope==='full'||saved.scope==='q'||saved.scope==='a')) scope=saved.scope;
   if(saved && typeof saved.followPlay==='boolean') followPlay=saved.followPlay;
   if(saved && typeof saved.textHighlight==='boolean') textHighlight=saved.textHighlight;
+  if(saved && typeof saved.karaoke==='boolean') karaokeOn=saved.karaoke;
 } catch(e) { /* 存储不可用不影响播放。 */ }
 function savePreferences(){
   try { localStorage.setItem(preferenceKey,JSON.stringify({
     voice:preferredVoice, rate:parseFloat(document.getElementById('rate').value),
-    ttsVoice:ttsVoice, scope:scope, mode:mode, followPlay:followPlay, textHighlight:textHighlight })); }
+    ttsVoice:ttsVoice, scope:scope, mode:mode, followPlay:followPlay, textHighlight:textHighlight, karaoke:karaokeOn })); }
   catch(e) { /* 部分浏览器限制本地文件存储。 */ }
 }
 function voiceId(v){ return JSON.stringify([v.voiceURI||v.name,v.lang,v.name]); }
@@ -1324,6 +1353,7 @@ function cancelPlayback(){
   if(speechEngine) speechEngine.cancel();
   clearHighlight();
   clearReading();
+  karaokeClear();
   resetFollow();
 }
 function playSeq(ids,sc,suppress){
@@ -1336,7 +1366,7 @@ function playSeq(ids,sc,suppress){
 }
 function step(id){
   if(id!==playbackId) return;
-  if(qi>=queue.length){ clearHighlight(); clearReading(); resetFollow(); setStatus('播放完成'); return; }
+  if(qi>=queue.length){ clearHighlight(); clearReading(); karaokeClear(); resetFollow(); setStatus('播放完成'); return; }
   const it=queue[qi], n=ALL_IDS.indexOf(it.id)+1;
   highlight(it.id,true);
   setReading(it.id, it.part);
@@ -1350,10 +1380,13 @@ function step(id){
   player.onended=function(){ if(id===playbackId) advance(id); };
   player.onerror=function(){ if(id===playbackId) fallbackOnce(); };
   player.src=audioUrl(ttsVoice,it.id,it.part);
+  karaokeInject(it.id, it.part);
   const pr=player.play();
+  karaokeStart();
   if(pr && pr.catch) pr.catch(function(){ if(id===playbackId) fallbackOnce(); });
 }
 function fallbackSpeak(id,qid,part){
+  karaokeClear();
   if(!canSpeak()){ setStatus('离线音频不可用，且浏览器不支持在线朗读'); return; }
   const u=makeUtter(partText(qid,part));
   u.onend=function(){ if(id===playbackId) advance(id); };
@@ -1481,6 +1514,102 @@ document.getElementById('textHighlight').addEventListener('change', function(){
 });
 function initTextHighlight(){ document.getElementById('textHighlight').checked=textHighlight; }
 initTextHighlight();
+/* ===== 逐字跳动：独立开关 karaokeOn，仅离线 MP3 路径生效，与跟随朗读/文字高亮互不影响 ===== */
+function karaokeRoots(id,part){
+  var qbody=document.getElementById(id).querySelector('.qbody');
+  if(!qbody) return [];
+  if(part==='q'){ var t=qbody.querySelector('.qtitle'); return t?[t]:[]; }
+  return Array.from(qbody.querySelectorAll('p.li'));
+}
+function karaokeResetClasses(){
+  karaokeSpans.forEach(function(s){ s.classList.remove('is-read','is-now'); });
+  karaokeLastK=-1; karaokeNowIdx=-1;
+}
+function karaokeClear(){
+  if(karaokeRaf){ cancelAnimationFrame(karaokeRaf); karaokeRaf=0; }
+  karaokeTargets.forEach(function(t){ t.el.innerHTML=t.html; });
+  karaokeTargets=[]; karaokeSpans=[];
+  karaokeLastK=-1; karaokeNowIdx=-1; karaokeActive=false;
+  document.querySelectorAll('.q.karaoke-on, .q.kx-reduced').forEach(function(e){
+    e.classList.remove('karaoke-on','kx-reduced');
+  });
+}
+function karaokeInject(id,part){
+  karaokeClear();
+  if(!karaokeOn || mode!=='offline') return;
+  var roots=karaokeRoots(id,part);
+  if(!roots.length) return;
+  var q=document.getElementById(id);
+  if(q){ q.classList.add('karaoke-on'); if(reducedMotion.matches) q.classList.add('kx-reduced'); }
+  roots.forEach(function(root){
+    karaokeTargets.push({el:root, html:root.innerHTML});
+    var tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var nodes=[];
+    while(tw.nextNode()) nodes.push(tw.currentNode);
+    nodes.forEach(function(node){
+      var s=node.nodeValue;
+      if(!s || !/\S/.test(s)) return;
+      var pieces=[node];
+      for(var i=1;i<s.length;i++) pieces.push(pieces[pieces.length-1].splitText(1));
+      pieces.forEach(function(piece){
+        var ch=piece.nodeValue;
+        if(!/\S/.test(ch)) return;
+        var sp=document.createElement('span');
+        sp.className='kx';
+        sp.textContent=ch;
+        piece.parentNode.replaceChild(sp,piece);
+        karaokeSpans.push(sp);
+      });
+    });
+  });
+  karaokeActive=karaokeSpans.length>0;
+  karaokePlayId=playbackId;
+}
+function karaokeApply(p){
+  var total=karaokeSpans.length;
+  if(!total) return;
+  var LEAD=0.03, TRAIL=0.03, SPAN=1-LEAD-TRAIL;
+  var v=Math.min(1,Math.max(0,(p-LEAD)/SPAN));
+  var k=Math.min(total,Math.floor(v*total));
+  if(k<karaokeLastK){ karaokeResetClasses(); karaokeLastK=0; }
+  for(var i=Math.max(0,karaokeLastK);i<k;i++) karaokeSpans[i].classList.add('is-read');
+  var nowIdx=k>0?k-1:-1;
+  if(nowIdx!==karaokeNowIdx){
+    if(karaokeNowIdx>=0 && karaokeSpans[karaokeNowIdx]) karaokeSpans[karaokeNowIdx].classList.remove('is-now');
+    if(nowIdx>=0) karaokeSpans[nowIdx].classList.add('is-now');
+    karaokeNowIdx=nowIdx;
+  }
+  karaokeLastK=k;
+}
+function karaokeFrame(){
+  if(!karaokeActive || !karaokeOn || karaokePlayId!==playbackId){ karaokeRaf=0; return; }
+  var d=player.duration;
+  if(isFinite(d) && d>0 && !player.paused){
+    karaokeApply(Math.min(1,Math.max(0,player.currentTime/d)));
+  }
+  karaokeRaf=requestAnimationFrame(karaokeFrame);
+}
+function karaokeStart(){
+  if(karaokeRaf) cancelAnimationFrame(karaokeRaf);
+  karaokePlayId=playbackId; karaokeRaf=0;
+  if(karaokeActive && karaokeOn) karaokeRaf=requestAnimationFrame(karaokeFrame);
+}
+function karaokeResume(id,part){
+  if(mode!=='offline' || !isPlaying()) return;
+  karaokeInject(id,part);
+  karaokeStart();
+  if(isFinite(player.duration) && player.duration>0){
+    karaokeApply(Math.min(1,Math.max(0,player.currentTime/player.duration)));
+  }
+}
+/* ===== 逐字跳动开关：与 followPlay / textHighlight 互不干扰 ===== */
+document.getElementById('karaoke').addEventListener('change',function(){
+  karaokeOn=this.checked; savePreferences();
+  if(!karaokeOn){ karaokeClear(); return; }
+  if(isPlaying()){ var it=queue[qi]; if(it) karaokeResume(it.id,it.part); }
+});
+function initKaraoke(){ document.getElementById('karaoke').checked=karaokeOn; }
+initKaraoke();
 </script>
 
 
