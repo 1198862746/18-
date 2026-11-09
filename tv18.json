@@ -444,34 +444,6 @@
 			}
 		},
 		{
-			"key": "p115.py-py",
-			"name": "p115[py]",
-			"type": 3,
-			"api": "https://gh-proxy.com/raw.githubusercontent.com/1198862746/18-/refs/heads/main/tv/py/p115.py",
-			"searchable": 1,
-			"quickSearch": 1,
-			"filterable": 0,
-			"changeable": 0,
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
-			"key": "Javdb.py-py",
-			"name": "Javdb[py]",
-			"type": 3,
-			"api": "https://gh-proxy.com/raw.githubusercontent.com/1198862746/18-/refs/heads/main/tv/py/Javdb.py",
-			"searchable": 1,
-			"quickSearch": 1,
-			"filterable": 0,
-			"changeable": 0,
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
 			"key": "missav-app.py-py",
 			"name": "missav-app[py]",
 			"type": 3,
@@ -4721,19 +4693,6 @@
 			}
 		},
 		{
-			"key": "黄色仓库[🌈采集]🔞",
-			"name": "🔞黄色仓库[🌈采集]🔗💯",
-			"type": 1,
-			"api": "https://huangsecangku.net/api.php/provide/vod/",
-			"searchable": 1,
-			"quickSearch": 1,
-			"categories": [],
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
 			"key": "奥斯卡资源",
 			"name": "🔞奥斯卡资源[免翻][🌈采集]",
 			"type": 1,
@@ -4743,19 +4702,6 @@
 			"style": {
 				"type": "rect",
 				"ratio": 1.6
-			}
-		},
-		{
-			"key": "辣椒资源",
-			"name": "🔞辣椒🌶️资源[免翻][🌈采集]",
-			"type": 1,
-			"api": "https://apilj.com/api.php/provide/vod/",
-			"searchable": 1,
-			"quickSearch": 1,
-			"categories": [],
-			"style": {
-				"type": "rect",
-				"ratio": 1.8
 			}
 		},
 		{
@@ -4890,18 +4836,6 @@
 			}
 		},
 		{
-			"key": "*鲍鱼AV",
-			"name": "[🌈采集]鲍鱼AV很久没更新",
-			"type": 0,
-			"api": "https://www.caiji26.com/cjapi/sda/vod/json/m3u8.html",
-			"searchable": 1,
-			"quickSearch": 1,
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
 			"key": "*乐播资源",
 			"name": "[🌈采集]乐播资源",
 			"type": 1,
@@ -4950,18 +4884,6 @@
 			}
 		},
 		{
-			"key": "🔞X细胞_CMS",
-			"name": "🔞X细胞[采集]",
-			"type": 1,
-			"api": "https://www.xxibaozyw.com/api.php/provide/vod",
-			"searchable": 1,
-			"quickSearch": 1,
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
 			"key": "🔞大奶子_CMS",
 			"name": "🔞大奶子[采集]",
 			"type": 1,
@@ -4990,18 +4912,6 @@
 			"name": "🔞百花[采集]",
 			"type": 1,
 			"api": "https://bhziyuan.com/api.php/provide/vod/?ac=list",
-			"searchable": 1,
-			"quickSearch": 1,
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
-			"key": "🔞杏吧_CMS",
-			"name": "🔞杏吧[采集]",
-			"type": 1,
-			"api": "https://xingba111.com/api.php/provide/vod/?ac=list",
 			"searchable": 1,
 			"quickSearch": 1,
 			"style": {
@@ -5072,19 +4982,6 @@
 			"api": "https://www.heiliaozyapi.com/api.php/provide/vod/?ac=list",
 			"searchable": 1,
 			"quickSearch": 1,"changeable": 0,
-			"style": {
-				"type": "rect",
-				"ratio": 1.6
-			}
-		},
-		{
-			"key": "🔞香蕉_CMS",
-			"name": "🔞香蕉[采集]",
-			"type": 1,
-			"api": "https://www.xiangjiaozyw.com/api.php/provide/vod/?ac=list",
-			"searchable": 1,
-			"quickSearch": 1,
-			"changeable": 0,
 			"style": {
 				"type": "rect",
 				"ratio": 1.6
