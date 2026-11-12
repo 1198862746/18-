@@ -72,7 +72,7 @@
 			},
 			"changeable": 1
 		},
-		
+
 		{
 			"key": "stripchat直播通用弹幕-py",
 			"name": "💯stripchat高清通用弹幕[直播][py]",
@@ -99,7 +99,7 @@
 				"ratio": 1.6
 			}
 		},*/
-		
+
 		/*{
 			"key": "stripchat-py",
 			"name": "2️⃣stripchat[直播][py]",
@@ -499,7 +499,7 @@
 				"ratio": 1.6
 			}
 		},
-		
+
 		{
 			"key": "推特涩涩.py-py",
 			"name": "推特涩涩[py]",
@@ -708,7 +708,7 @@
 				"ratio": 1.6
 			}
 		},
-		
+
 		{
 			"key": "py_Pandalive.py",
 			"name": "Pandalive[直播][py][免翻]",
@@ -735,7 +735,7 @@
 				"ratio": 1.6
 			}
 		},
-		
+
 		{
 			"key": "美人图.py",
 			"name": "美人图[图][py]",
@@ -1757,7 +1757,7 @@
 			},
 			"changeable": 1
 		},
-		
+
 		{
 			"key": "泥视频py",
 			"name": "[正剧]泥视频[py]",
@@ -1794,7 +1794,7 @@
 			"filterable": 0,
 			"changeable": 1
 		},
-		
+
 		{
 			"key": "xiang512 (1)",
 			"name": "🔍xiang512[py]",
@@ -2165,7 +2165,7 @@
 				"ratio": 1.65
 			}
 		},
-		
+
 		{
 			"key": "csp_xbpq_pornhub11",
 			"name": "🔍💯pornhub[xbpq]",
@@ -2531,7 +2531,7 @@
 			"ext": "YoutubeSpider",
 			"filterable": 0
 		},
-		
+
 		{
 			"key": "csp_xbpq_91porna",
 			"name": "[待修复]🔞91porna[xbpq]",
@@ -2546,7 +2546,7 @@
 				"ratio": 1.8
 			}
 		},
-		
+
 		{
 			"key": "csp_XYQHiker_stripchat直播",
 			"name": "❌🔞StripChat[直播][XYQHiker]",
@@ -2896,7 +2896,7 @@
 				"ratio": 1.6
 			}
 		},
-		
+
 		{
 			"key": "csp_XYQHiker_鉴黄师",
 			"name": "🔞鉴黄师[XYQHiker]",
@@ -3697,7 +3697,19 @@
 				"type": "rect",
 				"ratio": 1.6
 			}
-		},
+		},{
+        "key": "黄色仓库[🌈采集]🔞",
+        "name": "🔞黄色仓库[🌈采集]🔗💯",
+        "type": 1,
+        "api": "https://huangsecangku.net/api.php/provide/vod/",
+        "searchable": 1,
+        "quickSearch": 1,
+        "categories": [],
+        "style": {
+          "type": "rect",
+          "ratio": 1.6
+        }
+      },
 		{
 			"key": "csp_XYQHiker_酷爱成人网>",
 			"name": "🔞酷爱成人网✈️[XYQHiker]",
@@ -4358,8 +4370,8 @@
 				}
 			}
 		},
-		
-		
+
+
 		{
 			"key": "netflav(gm)",
 			"name": "🔍NETFLAV[gm]",
